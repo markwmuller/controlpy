@@ -1,86 +1,69 @@
+""" Linear quadratic regulator tools.
+
+"""
+
 from __future__ import division, print_function
 
 import numpy as np
 import scipy.linalg
 
 
-
-def compute_lqr(A,B,Q,R):
-    """Solve the continuous time lqr controller.
+def compute_lqr_continuous_time(A,B,Q,R):
+    """Solve the continuous time LQR controller for a continuous time system.
     
-    dx/dt = A x + B u
+    A and B are system matrices, describing the systems dynamics:
+     dx/dt = A x + B u
     
-    cost = integral x.T*Q*x + u.T*R*u
+    The controller minimizes the infinite horizon quadratic cost function:
+     cost = integral x.T*Q*x + u.T*R*u
     
-    Returns gain K, X, and the closed loop system eigenvalues
-    input: u = -K*x
+    where Q is a positive semidefinite matrix, and R is positive definite matrix.
+    
+    Returns K, X, eigVals:
+    Returns gain the optimal gain K, the solution matrix X, and the closed loop system eigenvalues.
+    The optimal input is then computed as:
+     input: u = -K*x
     """
     #ref Bertsekas, p.151
 
     #first, try to solve the ricatti equation
-    X = np.matrix(scipy.linalg.solve_continuous_are(A, B, Q, R))
+    X = scipy.linalg.solve_continuous_are(A, B, Q, R)
     
     #compute the LQR gain
-    K = np.matrix(scipy.linalg.inv(R)*(B.T*X))
+    K = np.dot(scipy.linalg.inv(R),(np.dot(B.T,X)))  # todo! Do this without an explicit inverse...
     
-    eigVals, eigVecs = scipy.linalg.eig(A-B*K)
+    eigVals, eigVecs = scipy.linalg.eig(A-np.dot(B,K))
     
     return K, X, eigVals
 
 
 
 def compute_lqr_discrete_time(A,B,Q,R):
-    """Solve the discrete time lqr controller.
+    """Solve the discrete time LQR controller for a discrete time system.
     
+    A and B are system matrices, describing the systems dynamics:
+     x[k+1] = A x[k] + B u[k]
     
-    x[k+1] = A x[k] + B u[k]
+    The controller minimizes the infinite horizon quadratic cost function:
+     cost = sum x[k].T*Q*x[k] + u[k].T*R*u[k]
     
-    cost = sum x[k].T*Q*x[k] + u[k].T*R*u[k]
+    where Q is a positive semidefinite matrix, and R is positive definite matrix.
+    
+    Returns K, X, eigVals:
+    Returns gain the optimal gain K, the solution matrix X, and the closed loop system eigenvalues.
+    The optimal input is then computed as:
+     input: u = -K*x
     """
     #ref Bertsekas, p.151
 
     #first, try to solve the ricatti equation
-    X = np.matrix(scipy.linalg.solve_discrete_are(A, B, Q, R))
+    X = scipy.linalg.solve_discrete_are(A, B, Q, R)
     
     #compute the LQR gain
-    K = np.matrix(scipy.linalg.inv(B.T*X*B+R)*(B.T*X*A))
+    K = np.dot(scipy.linalg.inv(np.dot(np.dot(B.T,X),B)+R),(np.dot(np.dot(B.T,X),A)))  # todo! Remove inverse.
     
-    eigVals, eigVecs = scipy.linalg.eig(A-B*K)
-    
-    return K, X, eigVals
-
-
-def steady_state_kalman_filter(A, H, Q, R):
-    X = np.matrix(scipy.linalg.solve_discrete_are(A.T, H.T, Q, R))
-    
-    #compute the kalman filter gain
-    K = np.matrix(X*H.T*scipy.linalg.inv(H*X*H.T + R))
-    
-    eigVals, eigVecs = scipy.linalg.eig(A-B*K)
+    eigVals, eigVecs = scipy.linalg.eig(A-np.dot(B,K))
     
     return K, X, eigVals
-    
 
-    
-def gramian_controllability(A, B):
-    '''Compute the controllability gramian of the stable continuous time system.
-    
-    dx = A*x + B*u
-    
-    '''
-    eigVals, eigVecs = scipy.linalg.eig(A)
-    if np.max(np.real(eigVals)) >= 0:
-        print('Cannot compute gramian for A, has an eigen value with real part:',np.max(np.real(eigVals)))
-        return None
-    
-    Wc = scipy.linalg.solve_lyapunov(A, -B*B.T)
-    return Wc
-    
-    
-    
-    
-    
-    
-    
-    
-    
+
