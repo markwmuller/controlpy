@@ -6,6 +6,7 @@ from __future__ import division, print_function
 
 import numpy as np
 import scipy.linalg
+import scipy.integrate
 
 def uncontrollable_modes(A, B):
     '''Returns all the uncontrollable modes of the pair A,B.
