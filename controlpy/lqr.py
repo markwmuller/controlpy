@@ -8,7 +8,7 @@ import numpy as np
 import scipy.linalg
 
 
-def compute_lqr_continuous_time(A,B,Q,R):
+def lqr_continuous_time(A,B,Q,R):
     """Solve the continuous time LQR controller for a continuous time system.
     
     A and B are system matrices, describing the systems dynamics:
@@ -38,7 +38,7 @@ def compute_lqr_continuous_time(A,B,Q,R):
 
 
 
-def compute_lqr_discrete_time(A,B,Q,R):
+def lqr_discrete_time(A,B,Q,R):
     """Solve the discrete time LQR controller for a discrete time system.
     
     A and B are system matrices, describing the systems dynamics:
