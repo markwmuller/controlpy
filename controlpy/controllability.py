@@ -18,7 +18,7 @@ def uncontrollable_modes(A, B):
     '''
 
     assert A.shape[0]==A.shape[1], "Matrix A is not square"
-    assert A.shape[0]==B.shape[0], "Matrix A and B do not align"
+    assert A.shape[0]==B.shape[0], "Matrices A and B do not align"
 
     nStates = A.shape[0]
     nInputs = B.shape[1]
