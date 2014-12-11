@@ -2,7 +2,7 @@
 
 """
 
-from __future__ import division, print_function
+from __future__ import division
 
 import numpy as np
 import scipy.linalg
@@ -24,7 +24,6 @@ def uncontrollable_modes(A, B):
     nInputs = B.shape[1]
 
     eVal, eVec = np.linalg.eig(A)
-    print(eVec[:,0])
 
     uncontrollableModes = []
 
