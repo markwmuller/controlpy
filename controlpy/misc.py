@@ -17,22 +17,6 @@ def steady_state_kalman_filter(A, H, Q, R):
     
 
     
-def gramian_controllability(A, B):
-    '''Compute the controllability gramian of the stable continuous time system.
-    
-    dx = A*x + B*u
-    
-    '''
-    eigVals, eigVecs = scipy.linalg.eig(A)
-    if np.max(np.real(eigVals)) >= 0:
-        print('Cannot compute gramian for A, has an eigen value with real part:',np.max(np.real(eigVals)))
-        return None
-    
-    Wc = scipy.linalg.solve_lyapunov(A, -B*B.T)
-    return Wc
-    
-    
-    
     
     
     

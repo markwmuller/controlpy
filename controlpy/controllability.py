@@ -15,6 +15,8 @@ def uncontrollable_modes(A, B):
      dx = A*x + B*u
     
     returns a list of the uncontrollable modes.
+    
+    see Callier & Desoer "Linear System Theory", P. 253
     '''
 
     assert A.shape[0]==A.shape[1], "Matrix A is not square"
