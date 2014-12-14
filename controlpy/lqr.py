@@ -15,7 +15,7 @@ def lqr_continuous_time(A,B,Q,R):
      dx/dt = A x + B u
     
     The controller minimizes the infinite horizon quadratic cost function:
-     cost = integral x.T*Q*x + u.T*R*u
+     cost = integral (x.T*Q*x + u.T*R*u) dt
     
     where Q is a positive semidefinite matrix, and R is positive definite matrix.
     
