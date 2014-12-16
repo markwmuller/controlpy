@@ -1,3 +1,4 @@
+#(c) 2014 Mark W. Mueller
 __all__ = []
 
 import lqr

@@ -2,6 +2,7 @@
 
 See the excellent lecture notes by Hannu T. Toivonen "Robust control methods"
 
+(c) 2014 Mark W. Mueller
 """
 
 from __future__ import division, print_function

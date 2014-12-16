@@ -1,5 +1,6 @@
 """ Linear quadratic regulator tools.
 
+(c) 2014 Mark W. Mueller
 """
 
 from __future__ import division, print_function
