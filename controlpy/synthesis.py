@@ -105,142 +105,154 @@ def controller_H2_state_feedback(A, Binput, Bdist, C1, D12):
     -------
     K : (m, n) Matrix
         H2 optimal controller gain
-    S : (n, n) Matrix
+    X : (n, n) Matrix
         Solution to the Ricatti equation
     J : Minimum cost value
     
     """
 
-    S = scipy.linalg.solve_continuous_are(A, Binput, C1.T*C1, D12.T*D12)
+    X = scipy.linalg.solve_continuous_are(A, Binput, C1.T*C1, D12.T*D12)
 
-    K = scipy.linalg.inv(D12.T*D12)*Binput.T*S
+    K = scipy.linalg.inv(D12.T*D12)*Binput.T*X
 
-    J = np.trace(Bdist.T*S*Bdist)
+    J = np.sqrt(np.trace(Bdist.T*X*Bdist))
     
-    return K, S, J
-
-
-def controller_Hinf_state_feedback(A, Binput, Bdist, C1, D12, stabilityBoundaryEps=1e-16, gammaPrecision=1e-9, gammaLB = 0, gammaUB = np.Inf, HACK_FACTOR = 1.1):
-    """Solve for the optimal H_infinity static state feedback controller.
-        
-    A, Bdist, and Binput are system matrices, describing the systems dynamics:
-     dx/dt = A*x + Binput*u + Bdist*v
-     where x is the system state, u is the input, and v is the disturbance
-        
-    The goal is to minimize the output Z, in the H_inf sense, defined as
-     z = C1*x + D12*u
- 
-    The optimal output is given by a static feedback gain:
-     u = - K*x
-        
-    Parameters
-    ----------
-    A  : (n, n) Matrix
-         Input
-    Bdist : (n, m) Matrix
-         Input
-    Binput : (n, p) Matrix
-         Input
-    C1 : (n, q) Matrix
-         Input
-    D12: (q, p) Matrix
-         Input
-    stabilityBoundaryEps: float
-        Input (optional)
-    gammaPrecision: float
-        Input (optional)
-    gammaLB: float
-        Input (optional)
-    gammaUB: float
-        Input (optional)
-    
-    Returns
-    -------
-    K : (m, n) Matrix
-        Hinf optimal controller gain
-    S : (n, n) Matrix
-        Solution to the Ricatti equation
-    J : Minimum cost value (gamma)
-    """
-       
-    assert analysis.is_stabilisable(A, Binput), '(A, Binput) must be stabilisable'
-    assert np.linalg.det(D12.T*D12), 'D12.T*D12 must be invertible'
-    assert np.max(np.abs(D12.T*C1))==0, 'D12.T*C1 must be zero'
-    tmp = analysis.unobservable_modes(C1, A, returnEigenValues=True)[1]
-    if tmp:
-        assert np.max(np.abs(np.real(tmp)))>0, 'The pair (C1,A) must have no unobservable modes on imag. axis'
-      
-    #First, solve the ARE:
-    # A.T*X+X*A - X*Binput*inv(D12.T*D12)*Binput.T*X + gamma**(-2)*X*Bdist*Bdist.T*X + C1.T*C1 = 0
-    #Let:
-    # R = [[-gamma**(-2)*eye, 0],[0, D12.T*D12]]
-    # B = [Bdist, Binput]
-    # Q = C1.T*C1
-    #then we have to solve
-    # A.T*X+X*A - X*B*inv(R)*B.T*X + Q = 0
-     
-    B = np.matrix(np.zeros([Bdist.shape[0],(Bdist.shape[1]+Binput.shape[1])]))
-    B[:,:Bdist.shape[1]] = Bdist
-    B[:,Bdist.shape[1]:] = Binput
-       
-    R = np.matrix(np.zeros([B.shape[1], B.shape[1]]))
-    #we fill the upper left of R later.
-    R[Bdist.shape[1]:,Bdist.shape[1]:] = D12.T*D12
-    Q = C1.T*C1
-      
-    #Define a helper function:
-    def has_stable_solution(g, A, B, Q, R, eps):
-        R[0:Bdist.shape[1], 0:Bdist.shape[1]] = -g**(2)*np.eye(Bdist.shape[1], Bdist.shape[1])
-        try:
-            X = scipy.linalg.solve_continuous_are(A, B, Q, R)
-        except np.linalg.linalg.LinAlgError:
-            return False, None
-                 
-        eigsX = np.linalg.eig(X)[0]
-        if (np.min(np.real(eigsX)) < 0) or (np.sum(np.abs(np.imag(eigsX)))>eps):
-            #The ARE has to return a pos. semidefinite solution, but X is not
-            return False, None  
-  
-        CL = A - Binput*np.linalg.inv(D12.T*D12)*Binput.T*X + g**(-2)*Bdist*Bdist.T*X 
-        eigs = np.linalg.eig(CL)[0]
-          
-        return (np.max(np.real(eigs)) < -eps), X
- 
-      
-    if np.isinf(gammaUB):
-        #automatically choose an UB
-        gammaUB = np.max([1, gammaLB])
-          
-        #Find an upper bound:
-        counter = 1
-        while not has_stable_solution(gammaUB, A, B, Q, R, stabilityBoundaryEps)[0]:
-            gammaUB *= 2
-            counter += 1 
-      
-            assert counter < 1024, 'Exceeded max number of iterations searching for upper gamma bound!'
-          
-    X = None
-    while (gammaUB-gammaLB)>gammaPrecision:
-        g = 0.5*(gammaUB+gammaLB)
-         
-        stab, X2 = has_stable_solution(g, A, B, Q, R, stabilityBoundaryEps)
-        if stab:
-            gammaUB = g
-            X = X2
-        else:
-            gammaLB = g
-     
-    assert X is not None, 'No solution found! Check supplied upper bound'
- 
-    #apply the HACK_FACTOR:
-    g = gammaUB*HACK_FACTOR
-    stab, X = has_stable_solution(g, A, B, Q, R, stabilityBoundaryEps)
-    assert stab
-     
-    K = np.linalg.inv(D12.T*D12)*Binput.T*X
-   
-    J = gammaUB
     return K, X, J
+
+
+# def controller_Hinf_state_feedback(A, Binput, Bdist, C1, D12, stabilityBoundaryEps=1e-16, gammaPrecision=1e-6, gammaLB = 0, gammaUB = np.Inf):
+#     """Solve for the optimal H_infinity static state feedback controller.
+#         
+#     A, Bdist, and Binput are system matrices, describing the systems dynamics:
+#      dx/dt = A*x + Binput*u + Bdist*v
+#      where x is the system state, u is the input, and v is the disturbance
+#         
+#     The goal is to minimize the output Z, in the H_inf sense, defined as
+#      z = C1*x + D12*u
+#  
+#     The optimal output is given by a static feedback gain:
+#      u = - K*x
+#         
+#     Parameters
+#     ----------
+#     A  : (n, n) Matrix
+#          Input
+#     Bdist : (n, m) Matrix
+#          Input
+#     Binput : (n, p) Matrix
+#          Input
+#     C1 : (n, q) Matrix
+#          Input
+#     D12: (q, p) Matrix
+#          Input
+#     stabilityBoundaryEps: float
+#         Input (optional)
+#     gammaPrecision: float
+#         Input (optional)
+#     gammaLB: float
+#         Input (optional)
+#     gammaUB: float
+#         Input (optional)
+#     
+#     Returns
+#     -------
+#     K : (m, n) Matrix
+#         Hinf optimal controller gain
+#     X : (n, n) Matrix
+#         Solution to the Ricatti equation
+#     J : Minimum cost value (gamma)
+#     """
+#        
+#     assert analysis.is_stabilisable(A, Binput), '(A, Binput) must be stabilisable'
+#     assert np.linalg.det(D12.T*D12), 'D12.T*D12 must be invertible'
+#     assert np.max(np.abs(D12.T*C1))==0, 'D12.T*C1 must be zero'
+#     tmp = analysis.unobservable_modes(C1, A, returnEigenValues=True)[1]
+#     if tmp:
+#         assert np.max(np.abs(np.real(tmp)))>0, 'The pair (C1,A) must have no unobservable modes on imag. axis'
+#       
+#     #First, solve the ARE:
+#     # A.T*X+X*A - X*Binput*inv(D12.T*D12)*Binput.T*X + gamma**(-2)*X*Bdist*Bdist.T*X + C1.T*C1 = 0
+#     #Let:
+#     # R = [[-gamma**(-2)*eye, 0],[0, D12.T*D12]]
+#     # B = [Bdist, Binput]
+#     # Q = C1.T*C1
+#     #then we have to solve
+#     # A.T*X+X*A - X*B*inv(R)*B.T*X + Q = 0
+#      
+#     B = np.matrix(np.zeros([Bdist.shape[0],(Bdist.shape[1]+Binput.shape[1])]))
+#     B[:,:Bdist.shape[1]] = Bdist
+#     B[:,Bdist.shape[1]:] = Binput
+#        
+#     R = np.matrix(np.zeros([B.shape[1], B.shape[1]]))
+#     #we fill the upper left of R later.
+#     R[Bdist.shape[1]:,Bdist.shape[1]:] = D12.T*D12
+#     Q = C1.T*C1
+#       
+#     #Define a helper function:
+#     def has_stable_solution(g, A, B, Q, R, eps):
+#         R[0:Bdist.shape[1], 0:Bdist.shape[1]] = -g**(2)*np.eye(Bdist.shape[1], Bdist.shape[1])
+#         
+#         try:
+#             X = scipy.linalg.solve_continuous_are(A, B, Q, R)
+#         except np.linalg.linalg.LinAlgError:
+#             return False, None
+#         
+#         X = np.matrix(X)
+#         res = A.T*X + X*A.T - X*B*np.linalg.inv(R)*B.T*X + Q
+#                  
+#         eigsX = np.linalg.eig(X)[0]
+#         
+#         if (np.min(np.real(eigsX)) < 0) or (np.sum(np.abs(np.imag(eigsX)))>eps):
+#             #The ARE has to return a pos. semidefinite solution, but X is not
+#             return False, None  
+# 
+# #         ###???###
+# #         #Condition number check (TODO: Re-think this...)
+# #         if max(eigsX)/min(eigsX) > 10**(MAX_COND_NUMBER):
+# #             return False, None  
+# #             
+#   
+#         CL = A - Binput*np.linalg.inv(D12.T*D12)*Binput.T*X + g**(-2)*Bdist*Bdist.T*X 
+#         eigs = np.linalg.eig(CL)[0]
+#           
+#         return (np.max(np.real(eigs)) < -eps), X
+#  
+# 
+#     X = None
+#     if np.isinf(gammaUB):
+#         #automatically choose an UB
+#         gammaUB = np.max([1, gammaLB])
+#           
+#         #Find an upper bound:
+#         counter = 1
+#         while True:
+#             
+#             stab, X2 = has_stable_solution(gammaUB, A, B, Q, R, stabilityBoundaryEps)
+#             if stab:
+#                 X = X2.copy()
+#                 break
+# 
+#             gammaUB *= 2
+#             counter += 1 
+#       
+#             assert counter < 1024, 'Exceeded max number of iterations searching for upper gamma bound!'
+#           
+#     while (gammaUB-gammaLB)>gammaPrecision:
+#         g = 0.5*(gammaUB+gammaLB)
+#          
+#         stab, X2 = has_stable_solution(g, A, B, Q, R, stabilityBoundaryEps)
+#         if stab:
+#             gammaUB = g
+#             X = X2
+#         else:
+#             gammaLB = g
+#      
+#     assert X is not None, 'No solution found! Check supplied upper bound'
+#  
+#     K = np.linalg.inv(D12.T*D12)*Binput.T*X
+#    
+#     J = gammaUB
+#     return K, X, J
 
 
 # def observer_kalman_filter_steady_state(A, H, Q, R):

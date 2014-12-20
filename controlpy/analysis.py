@@ -287,12 +287,12 @@ def system_norm_Hinf(Acl, Bdisturbance, C, D = None, lowerBound = 0, upperBound 
             isOK, X2 = test_upper_bound(upperBound, Acl, Bdisturbance, C, D)
 
             if isOK:
-                X = X2
+                X = X2.copy()
                 break
 
             upperBound *= 2
             counter += 1
-            assert counter<1000, 'Exceeded max. number of iterations searching for upper bound'
+            assert counter<1024, 'Exceeded max. number of iterations searching for upper bound'
             
     #perform a bisection search to find the gain:
     while (upperBound-lowerBound)>precision:

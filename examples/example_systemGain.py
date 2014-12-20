@@ -17,4 +17,4 @@ B = np.matrix([[0],[1]])
 C = np.matrix([[1,0]])
 
 print('H2 norm: ',controlpy.analysis.system_norm_H2(A, B, C))
-print('Hinf norm: ',controlpy.analysis.system_norm_Hinf(A, B, C, precision=1e-6))
+print('Hinf norm: ',controlpy.analysis.system_norm_Hinf(A, B, C))
