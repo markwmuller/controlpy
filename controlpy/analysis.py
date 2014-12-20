@@ -205,7 +205,7 @@ def is_detectable(C, A):
 #     return Q
 
 
-def system_gain_H2(Acl, Bdisturbance, C):
+def system_norm_H2(Acl, Bdisturbance, C):
     '''Compute a system's H2 gain.
     
     TODO description.
@@ -224,7 +224,7 @@ def system_gain_H2(Acl, Bdisturbance, C):
     return np.sqrt(np.trace(C*P*C.T))
     
 
-def system_gain_Hinf(Acl, Bdisturbance, C, D = None, lowerBound = 0, upperBound = np.inf, precision = 1e-3):
+def system_norm_Hinf(Acl, Bdisturbance, C, D = None, lowerBound = 0, upperBound = np.inf, precision = 1e-3):
     '''Compute a system's Hinfinity gain.
     
     TODO description.
@@ -238,21 +238,21 @@ def system_gain_Hinf(Acl, Bdisturbance, C, D = None, lowerBound = 0, upperBound 
         return np.inf
 
     
-    eps = 1e-15
+    eps = 1e-10
     
     if D is None:
         #construct a fake feed-through matrix
-        D = np.matrix(np.zeros(Acl.shape[0],1))
+        D = np.matrix(np.zeros([C.shape[0], Bdisturbance.shape[1]]))
     
 
     def test_upper_bound(gamma, A, B, C, D):
         '''Is the given gamma an upper bound for the Hinf gain?
         '''
         #Construct the R matrix:
-        Rric = - gamma**2*np.matrix(np.eye(D.shape[0],D.shape[0])) + D.T*D
+        Rric = -gamma**2*np.matrix(np.eye(D.shape[1],D.shape[1])) + D.T*D
         #test that Rric is negative definite
         eigsR = np.linalg.eig(Rric)[0]
-        if max(np.real(eigsR)) > eps:
+        if max(np.real(eigsR)) > -eps:
             return False, None
         
         #matrices for the Ricatti equation:
@@ -271,24 +271,30 @@ def system_gain_Hinf(Acl, Bdisturbance, C, D = None, lowerBound = 0, upperBound 
             #The ARE has to return a pos. semidefinite solution, but X is not
             return False, None  
   
-        CL = A - B*np.linalg.inv(D.T*D)*(B.T*X + D.T*C)
+        CL = A + B*np.linalg.inv(-Rric)*(B.T*X + D.T*C)
         eigs = np.linalg.eig(CL)[0]
           
         return (np.max(np.real(eigs)) < -eps), X
     
+    #our ouptut ricatti solution
+    X = None
     
     #Are we supplied an upper bound? 
     if not np.isfinite(upperBound):
         upperBound = max([1,lowerBound])
         counter = 1
-        while not test_upper_bound(upperBound, Acl, Bdisturbance, C, D):
+        while True:
+            isOK, X2 = test_upper_bound(upperBound, Acl, Bdisturbance, C, D)
+
+            if isOK:
+                X = X2
+                break
+
             upperBound *= 2
             counter += 1
             assert counter<1000, 'Exceeded max. number of iterations searching for upper bound'
             
-            
     #perform a bisection search to find the gain:
-    X = None
     while (upperBound-lowerBound)>precision:
         g = 0.5*(upperBound+lowerBound)
          
@@ -301,5 +307,5 @@ def system_gain_Hinf(Acl, Bdisturbance, C, D = None, lowerBound = 0, upperBound 
      
     assert X is not None, 'No solution found! Check supplied upper bound'
     
-    return g
+    return upperBound
     
