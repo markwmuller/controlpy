@@ -9,3 +9,10 @@
 
 # vim temp files:
 *.py~
+
+#Eclipse/PyDev
+.project
+.pydevproject
+
+#Vim Temp files
+*~
