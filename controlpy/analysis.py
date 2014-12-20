@@ -1,13 +1,18 @@
-""" Tests related to the controllability of an LTI system
+""" Tools for analysing LTI systems.
 
 (c) 2014 Mark W. Mueller
 """
 
-from __future__ import division
-
 import numpy as np
 import scipy.linalg
 import scipy.integrate
+
+
+def is_stable(A):
+    '''Test whether the matrix A is Hurwitz.
+    '''
+    
+    return max(np.real(np.linalg.eig(A)[0])) < 0
 
 
 def uncontrollable_modes(A, B, returnEigenValues = False):
@@ -198,3 +203,103 @@ def is_detectable(C, A):
 #     out = scipy.integrate.odeint(gramian_ode, y0, [0,T], args=(A,B))
 #     Q = out[1,:].reshape([A.shape[0], A.shape[0]])
 #     return Q
+
+
+def system_gain_H2(Acl, Bdisturbance, C):
+    '''Compute a system's H2 gain.
+    
+    TODO description.
+    
+    see "robust control methods" by Toivonen, p.13
+    
+    '''
+    
+    if not is_stable(Acl):
+        return np.inf
+    
+    #first, compute the controllability gramian of (Acl, Bdisturbance)
+    P = controllability_gramian(Acl, Bdisturbance)
+    
+    #output the gain
+    return np.sqrt(np.trace(C*P*C.T))
+    
+
+def system_gain_Hinf(Acl, Bdisturbance, C, D = None, lowerBound = 0, upperBound = np.inf, precision = 1e-3):
+    '''Compute a system's Hinfinity gain.
+    
+    TODO description.
+    
+    see "robust control methods" by Toivonen, p.19
+    
+    '''
+
+
+    if not is_stable(Acl):
+        return np.inf
+
+    
+    eps = 1e-15
+    
+    if D is None:
+        #construct a fake feed-through matrix
+        D = np.matrix(np.zeros(Acl.shape[0],1))
+    
+
+    def test_upper_bound(gamma, A, B, C, D):
+        '''Is the given gamma an upper bound for the Hinf gain?
+        '''
+        #Construct the R matrix:
+        Rric = - gamma**2*np.matrix(np.eye(D.shape[0],D.shape[0])) + D.T*D
+        #test that Rric is negative definite
+        eigsR = np.linalg.eig(Rric)[0]
+        if max(np.real(eigsR)) > eps:
+            return False, None
+        
+        #matrices for the Ricatti equation:
+        Aric = A - B*np.linalg.inv(Rric)*D.T*C
+        Bric = B
+        Qric = C.T*C - C.T*D*np.linalg.inv(Rric)*D.T*C
+
+        try:
+            X = scipy.linalg.solve_continuous_are(Aric, Bric, Qric, Rric)
+        except np.linalg.linalg.LinAlgError:
+            #Couldn't solve
+            return False, None
+                 
+        eigsX = np.linalg.eig(X)[0]
+        if (np.min(np.real(eigsX)) < 0) or (np.sum(np.abs(np.imag(eigsX)))>eps):
+            #The ARE has to return a pos. semidefinite solution, but X is not
+            return False, None  
+  
+        CL = A - B*np.linalg.inv(D.T*D)*(B.T*X + D.T*C)
+        eigs = np.linalg.eig(CL)[0]
+          
+        return (np.max(np.real(eigs)) < -eps), X
+    
+    
+    #Are we supplied an upper bound? 
+    if not np.isfinite(upperBound):
+        upperBound = max([1,lowerBound])
+        counter = 1
+        while not test_upper_bound(upperBound, Acl, Bdisturbance, C, D):
+            upperBound *= 2
+            counter += 1
+            assert counter<1000, 'Exceeded max. number of iterations searching for upper bound'
+            
+            
+    #perform a bisection search to find the gain:
+    X = None
+    while (upperBound-lowerBound)>precision:
+        g = 0.5*(upperBound+lowerBound)
+         
+        stab, X2 = test_upper_bound(g, Acl, Bdisturbance, C, D)
+        if stab:
+            upperBound = g
+            X = X2
+        else:
+            lowerBound = g
+     
+    assert X is not None, 'No solution found! Check supplied upper bound'
+    
+    return g
+    
