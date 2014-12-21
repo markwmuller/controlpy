@@ -206,11 +206,11 @@ def is_detectable(C, A):
 
 
 def system_norm_H2(Acl, Bdisturbance, C):
-    '''Compute a system's H2 gain.
+    '''Compute a system's H2 norm.
     
     TODO description.
     
-    see "robust control methods" by Toivonen, p.13
+    see Dullerud, Paganini, p. 196
     
     '''
     
@@ -224,8 +224,8 @@ def system_norm_H2(Acl, Bdisturbance, C):
     return np.sqrt(np.trace(C*P*C.T))
     
 
-def system_norm_Hinf(Acl, Bdisturbance, C, D = None, lowerBound = 0, upperBound = np.inf, precision = 1e-3):
-    '''Compute a system's Hinfinity gain.
+def system_norm_Hinf(Acl, Bdisturbance, C, D = None, lowerBound = 0, upperBound = np.inf, relTolerance = 1e-3):
+    '''Compute a system's Hinfinity norm.
     
     TODO description.
     
@@ -295,7 +295,7 @@ def system_norm_Hinf(Acl, Bdisturbance, C, D = None, lowerBound = 0, upperBound 
             assert counter<1024, 'Exceeded max. number of iterations searching for upper bound'
             
     #perform a bisection search to find the gain:
-    while (upperBound-lowerBound)>precision:
+    while (upperBound-lowerBound)>relTolerance*upperBound:
         g = 0.5*(upperBound+lowerBound)
          
         stab, X2 = test_upper_bound(g, Acl, Bdisturbance, C, D)
