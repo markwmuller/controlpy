@@ -148,7 +148,7 @@ def observer_H2(A, Bdist, C1, C2, D21):
 #     return K, L, X, S, (Jc, Jo, J)
 
 
-def controller_Hinf_state_feedback(A, Binput, Bdist, C1, D12, stabilityBoundaryEps=1e-16, gammaRelTol=1e-2, gammaLB = 0, gammaUB = np.Inf):
+def controller_Hinf_state_feedback(A, Binput, Bdist, C1, D12, stabilityBoundaryEps=1e-16, gammaRelTol=1e-3, gammaLB = 0, gammaUB = np.Inf):
     """Solve for the optimal H_infinity static state feedback controller.
          
     A, Bdist, and Binput are system matrices, describing the systems dynamics:
@@ -282,12 +282,3 @@ def controller_Hinf_state_feedback(A, Binput, Bdist, C1, D12, stabilityBoundaryE
     return K, X, J
 
 
-# def observer_kalman_filter_steady_state(A, H, Q, R):
-#     X = np.matrix(scipy.linalg.solve_discrete_are(A.T, H.T, Q, R))
-#     
-#     #compute the kalman filter gain
-#     K = np.matrix(X*H.T*scipy.linalg.inv(H*X*H.T + R))
-#     
-#     eigVals, eigVecs = scipy.linalg.eig(A-B*K)
-#     
-#     return K, X, eigVals
