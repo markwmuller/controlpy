@@ -4,6 +4,7 @@ Controlpy
 A library for commonly used controls algorithms (e.g. creating LQR controllers). An alternative to Richard Murray's "control" package -- however, here we do not require Slycot.
 
 Current capabilities:
+
 1) System analysis:
   a) Test whether a system is stable, controllable, stabilisable, observable, or stabilisable.
   b) Get the uncontrollable/unobservable modes
@@ -14,7 +15,7 @@ Current capabilities:
   a) Create continuous and discrete time LQR controllers
   b) Full-information H2 optimal controller
   c) H2 optimal observer
-  c) Full-information Hinf controller
+  d) Full-information Hinf controller
 
 
 How to install
