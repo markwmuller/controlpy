@@ -8,9 +8,9 @@ import controlpy
 import numpy as np
 
 # The system is 
-# dx = A*x + B*u
+# dx = A*x + B*v
 # z = C*x 
-# u is a disturbance.
+# v is a disturbance.
 
 A = np.matrix([[-0.1, 10],[0,-0.7]])
 B = np.matrix([[0],[1]])

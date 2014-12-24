@@ -8,8 +8,8 @@ import scipy.linalg
 import scipy.integrate
 
 
-def is_stable(A):
-    '''Test whether the matrix A is Hurwitz.
+def is_hurwitz(A):
+    '''Test whether the matrix A is Hurwitz (i.e. asymptotically stable).
     '''
     
     return max(np.real(np.linalg.eig(A)[0])) < 0
@@ -70,6 +70,8 @@ def is_controllable(A, B):
 
 def is_stabilisable(A, B):
     '''Compute whether the pair (A,B) is stabilisable.
+
+    Returns True if stabilisable, False otherwise.
     '''
 
     modes, eigVals = uncontrollable_modes(A, B, returnEigenValues=True)
@@ -83,16 +85,16 @@ def is_stabilisable(A, B):
 
 
 def controllability_gramian(A, B, T = np.inf):
-    '''Compute the controllability gramian of the continuous time system.
+    '''Compute the causal controllability Gramian of the continuous time system.
     
     The system is described as
      dx = A*x + B*u
      
-    T is the horizon over which to compute the gramian. If not specified, the 
-    infinite horizon gramian is computed. Note that the infinite horizon grammian
+    T is the horizon over which to compute the Gramian. If not specified, the 
+    infinite horizon Gramian is computed. Note that the infinite horizon Gramian
     only exists for asymptotically stable systems.
     
-    If T is specified, we compute the gramian as
+    If T is specified, we compute the Gramian as
      Wc = integrate exp(A*t)*B*B.H*exp(A.H*t) dt 
     
     Returns the matrix Wc.
@@ -102,14 +104,14 @@ def controllability_gramian(A, B, T = np.inf):
     assert A.shape[0]==B.shape[0], "Matrix A and B do not align"
 
     if not np.isfinite(T):
-        #Infinite time gramian:
+        #Infinite time Gramian:
         eigVals, eigVecs = scipy.linalg.eig(A)
-        assert np.max(np.real(eigVals)) < 0, "Can only compute infinite horizon gramian for a stable system."
+        assert np.max(np.real(eigVals)) < 0, "Can only compute infinite horizon Gramian for a stable system."
         
         Wc = scipy.linalg.solve_lyapunov(A, -B*B.T)
         return Wc
     
-    # We need to solve the finite time gramian
+    # We need to solve the finite time Gramian
     # Boils down to solving an ODE:
     A = np.array(A,dtype=float)
     B = np.array(B,dtype=float)
@@ -154,6 +156,8 @@ def is_observable(C, A):
 
 def is_detectable(C, A):
     '''Compute whether the pair (C,A) is detectable.
+
+    Returns True if detectable, False otherwise.
     '''
 
     return is_stabilisable(A.getH(), C.getH())
@@ -161,16 +165,16 @@ def is_detectable(C, A):
 
 #TODO
 # def observability_gramian(A, B, T = np.inf):
-#     '''Compute the observability gramian of the continuous time system.
+#     '''Compute the observability Gramian of the continuous time system.
 #     
 #     The system is described as
 #      dx = A*x + B*u
 #      
-#     T is the horizon over which to compute the gramian. If not specified, the 
-#     infinite horizon gramian is computed. Note that the infinite horizon grammian
+#     T is the horizon over which to compute the Gramian. If not specified, the 
+#     infinite horizon Gramian is computed. Note that the infinite horizon Gramian
 #     only exists for asymptotically stable systems.
 #     
-#     If T is specified, we compute the gramian as
+#     If T is specified, we compute the Gramian as
 #      Wc = integrate exp(A*t)*B*B.H*exp(A.H*t) dt 
 #     
 #     Returns the matrix Wc.
@@ -180,14 +184,14 @@ def is_detectable(C, A):
 #     assert A.shape[0]==B.shape[0], "Matrix A and B do not align"
 # 
 #     if not np.isfinite(T):
-#         #Infinite time gramian:
+#         #Infinite time Gramian:
 #         eigVals, eigVecs = scipy.linalg.eig(A)
-#         assert np.max(np.real(eigVals)) < 0, "Can only compute infinite horizon gramian for a stable system."
+#         assert np.max(np.real(eigVals)) < 0, "Can only compute infinite horizon Gramian for a stable system."
 #         
 #         Wc = scipy.linalg.solve_lyapunov(A, -B*B.T)
 #         return Wc
 #     
-#     # We need to solve the finite time gramian
+#     # We need to solve the finite time Gramian
 #     # Boils down to solving an ODE:
 #     A = np.array(A,dtype=float)
 #     B = np.array(B,dtype=float)
@@ -208,16 +212,33 @@ def is_detectable(C, A):
 def system_norm_H2(Acl, Bdisturbance, C):
     '''Compute a system's H2 norm.
     
-    TODO description.
+    Acl, Bdisturbance are system matrices, describing the systems dynamics:
+     dx/dt = Acl*x  + Bdisturbance*v
+    where x is the system state and v is the disturbance.
     
-    see Dullerud, Paganini, p. 196
+    The system output is:
+     z = C*x
     
+    The matrix Acl must be Hurwitz for the H2 norm to be finite. 
+     
+    Parameters
+    ----------
+    A  : (n, n) Matrix, 
+         Input
+    Bdisturbance : (n, m) Matrix
+         Input
+    C : (n, q) Matrix
+         Input
+
+    Returns
+    -------
+    J2 : Systems H2 norm.
     '''
     
-    if not is_stable(Acl):
+    if not is_hurwitz(Acl):
         return np.inf
     
-    #first, compute the controllability gramian of (Acl, Bdisturbance)
+    #first, compute the controllability Gramian of (Acl, Bdisturbance)
     P = controllability_gramian(Acl, Bdisturbance)
     
     #output the gain
@@ -227,14 +248,46 @@ def system_norm_H2(Acl, Bdisturbance, C):
 def system_norm_Hinf(Acl, Bdisturbance, C, D = None, lowerBound = 0, upperBound = np.inf, relTolerance = 1e-3):
     '''Compute a system's Hinfinity norm.
     
-    TODO description.
+    Acl, Bdisturbance are system matrices, describing the systems dynamics:
+     dx/dt = Acl*x  + Bdisturbance*v
+    where x is the system state and v is the disturbance.
     
-    see "robust control methods" by Toivonen, p.19
+    The system output is:
+     z = C*x + D*v
+    
+    The matrix Acl must be Hurwitz for the Hinf norm to be finite. 
+    
+    The norm is found by iterating over the Riccati equation. The search can 
+    be sped up by providing lower and upper bounds for the norm. If ommitted, 
+    these are determined automatically. 
+    The search proceeds via bisection, and terminates when a specified relative
+    tolerance is achieved.
+     
+    Parameters
+    ----------
+    A  : (n, n) Matrix
+         Input
+    Bdisturbance : (n, m) Matrix
+         Input
+    C : (q, n) Matrix
+         Input
+    D : (q,m) Matrix
+         Input (optional)
+    lowerBound: float
+         Input (optional)
+    upperBound: float 
+         Input (optional)
+    relTolerance: float
+         Input (optional)
+
+    Returns
+    -------
+    Jinf : Systems Hinf norm.
     
     '''
 
 
-    if not is_stable(Acl):
+    if not is_hurwitz(Acl):
         return np.inf
 
     

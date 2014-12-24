@@ -10,7 +10,7 @@ import scipy.linalg
 import analysis
 
 
-def controller_lqr(A,B,Q,R):
+def controller_lqr(A, B, Q, R):
     """Solve the continuous time LQR controller for a continuous time system.
     
     A and B are system matrices, describing the systems dynamics:
@@ -32,7 +32,7 @@ def controller_lqr(A,B,Q,R):
     X = scipy.linalg.solve_continuous_are(A, B, Q, R)
     
     #compute the LQR gain
-    K = np.dot(scipy.linalg.inv(R),(np.dot(B.T,X)))  # todo! Do this without an explicit inverse...
+    K = np.dot(scipy.linalg.inv(R),(np.dot(B.T,X)))
     
     eigVals = np.linalg.eigvals(A-np.dot(B,K))
     
@@ -40,7 +40,7 @@ def controller_lqr(A,B,Q,R):
 
 
 
-def controller_lqr_discrete_time(A,B,Q,R):
+def controller_lqr_discrete_time(A, B, Q, R):
     """Solve the discrete time LQR controller for a discrete time system.
     
     A and B are system matrices, describing the systems dynamics:
@@ -56,13 +56,12 @@ def controller_lqr_discrete_time(A,B,Q,R):
     The optimal input is then computed as:
      input: u = -K*x
     """
-    #ref Bertsekas, p.151
 
     #first, try to solve the ricatti equation
     X = scipy.linalg.solve_discrete_are(A, B, Q, R)
     
     #compute the LQR gain
-    K = np.dot(scipy.linalg.inv(np.dot(np.dot(B.T,X),B)+R),(np.dot(np.dot(B.T,X),A)))  # todo! Remove inverse.
+    K = np.dot(scipy.linalg.inv(np.dot(np.dot(B.T,X),B)+R),(np.dot(np.dot(B.T,X),A)))  
     
     eigVals = np.linalg.eigvals(A-np.dot(B,K))
     
@@ -107,7 +106,7 @@ def controller_H2_state_feedback(A, Binput, Bdist, C1, D12):
         H2 optimal controller gain
     X : (n, n) Matrix
         Solution to the Ricatti equation
-    J : Minimum cost value
+    J : Minimum H2 cost value
     
     """
 
@@ -148,7 +147,7 @@ def observer_H2(A, Bdist, C1, C2, D21):
 #     return K, L, X, S, (Jc, Jo, J)
 
 
-def controller_Hinf_state_feedback(A, Binput, Bdist, C1, D12, stabilityBoundaryEps=1e-16, gammaRelTol=1e-3, gammaLB = 0, gammaUB = np.Inf):
+def controller_Hinf_state_feedback(A, Binput, Bdist, C1, D12, stabilityBoundaryEps=1e-16, gammaRelTol=1e-3, gammaLB = 0, gammaUB = np.Inf, subOptimality = 1.0):
     """Solve for the optimal H_infinity static state feedback controller.
          
     A, Bdist, and Binput are system matrices, describing the systems dynamics:
@@ -160,6 +159,14 @@ def controller_Hinf_state_feedback(A, Binput, Bdist, C1, D12, stabilityBoundaryE
   
     The optimal output is given by a static feedback gain:
      u = - K*x
+     
+    The optimizing gain is found by a bisection search to within a relative 
+    tolerance gammaRelTol, which may be supplied by the user. The search may
+    be initialised with lower and upper bounds gammaLB and gammaUB.
+    
+    The user may also specify a desired suboptimality, so that the returned
+    controller does not achieve the minimum Hinf norm. This may be desirable 
+    because of numerical issues near the optimal solution.
          
     Parameters
     ----------
@@ -175,7 +182,7 @@ def controller_Hinf_state_feedback(A, Binput, Bdist, C1, D12, stabilityBoundaryE
          Input
     stabilityBoundaryEps: float
         Input (optional)
-    gammaPrecision: float
+    gammaRelTol: float
         Input (optional)
     gammaLB: float
         Input (optional)
@@ -264,6 +271,7 @@ def controller_Hinf_state_feedback(A, Binput, Bdist, C1, D12, stabilityBoundaryE
        
             assert counter < 1024, 'Exceeded max number of iterations searching for upper gamma bound!'
            
+    #Find the minimising gain
     while (gammaUB-gammaLB)>gammaRelTol*gammaUB:
         g = 0.5*(gammaUB+gammaLB)
           
@@ -276,9 +284,16 @@ def controller_Hinf_state_feedback(A, Binput, Bdist, C1, D12, stabilityBoundaryE
       
     assert X is not None, 'No solution found! Check supplied upper bound'
   
+    g = gammaUB
+    if subOptimality > 1.0:
+        #compute a sub optimal solution
+        g *= subOptimality
+        stab, X = has_stable_solution(g, A, B, Q, R, stabilityBoundaryEps)
+        assert stab, 'Sub-optimal solution not found!'
+
     K = np.linalg.inv(D12.T*D12)*Binput.T*X
     
-    J = gammaUB
+    J = g
     return K, X, J
 
 

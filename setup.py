@@ -5,7 +5,7 @@ def readme():
         return f.read()
 
 setup(name='controlpy',
-      version='0.0.0.dev1',
+      version='0.0.0.a',
       description='Python control library',
       url='http://github.com/markwmuller/controlpy',
       author='Mark W. Mueller',
