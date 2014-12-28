@@ -209,7 +209,7 @@ def is_detectable(C, A):
 #     return Q
 
 
-def system_norm_H2(Acl, Bdisturbance, C):
+def system_norm_H2(Acl, Bdisturbance, C, useLMI = False):
     '''Compute a system's H2 norm.
     
     Acl, Bdisturbance are system matrices, describing the systems dynamics:
@@ -237,6 +237,35 @@ def system_norm_H2(Acl, Bdisturbance, C):
     
     if not is_hurwitz(Acl):
         return np.inf
+    
+    if useLMI:
+        #doesn't work very well, if problem poorly scaled Riccati works better.
+        #Dullerud p 210
+        
+        import cvxpy
+        
+        n = Acl.shape[0]
+        X = cvxpy.Semidef(n)
+        Y = cvxpy.Semidef(n)
+
+        constraints = [ Acl*X + X*Acl.T + Bdisturbance*Bdisturbance.T == -Y,
+                      ]
+
+        obj = cvxpy.Minimize(cvxpy.trace(Y))
+
+        prob = cvxpy.Problem(obj, constraints)
+        
+        prob.solve()
+        eps = 1e-16
+        if np.max(np.linalg.eigvals((-Acl*X - X*Acl.T - Bdisturbance*Bdisturbance.T).value)) > -eps:
+            print('Acl*X + X*Acl.T +Bdisturbance*Bdisturbance.T is not neg def.')
+            return np.Inf
+
+        if np.min(np.linalg.eigvals(X.value)) < eps:
+            print('X is not pos def.')
+            return np.Inf
+
+        return np.sqrt(np.trace(C*X.value*C.T))
     
     #first, compute the controllability Gramian of (Acl, Bdisturbance)
     P = controllability_gramian(Acl, Bdisturbance)
