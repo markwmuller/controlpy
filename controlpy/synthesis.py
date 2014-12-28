@@ -69,7 +69,7 @@ def controller_lqr_discrete_time(A, B, Q, R):
 
 
 
-def controller_H2_state_feedback(A, Binput, Bdist, C1, D12):
+def controller_H2_state_feedback(A, Binput, Bdist, C1, D12, useLMI = False):
     """Solve for the optimal H2 static state feedback controller.
     
     A, Bdist, and Binput are system matrices, describing the systems dynamics:
@@ -110,6 +110,37 @@ def controller_H2_state_feedback(A, Binput, Bdist, C1, D12):
     
     """
 
+    if useLMI:
+        #solve using LMI:
+        import cvxpy
+        #Dullerud p 217 (?)
+        
+        n = A.shape[0]  #num states
+        m = Binput.shape[1]  #num control inputs
+        q = C1.shape[0]  #num outputs to "be kept small"
+
+        X = cvxpy.Variable(n,n)
+        Y = cvxpy.Variable(m,n)
+        Z = cvxpy.Variable(q,q)
+        
+        tmp1 = cvxpy.hstack(X, (C1*X+D12*Y).T)
+        tmp2 = cvxpy.hstack((C1*X+D12*Y), Z)
+        tmp  = cvxpy.vstack(tmp1, tmp2)
+
+        constraints = [A*X + Binput*Y + X*A.T + Y.T*Binput.T + Bdist*Bdist.T == -cvxpy.Semidef(n),
+                       tmp == cvxpy.Semidef(n+q),
+                      ]
+
+        obj = cvxpy.Minimize(cvxpy.trace(Z))
+
+        prob = cvxpy.Problem(obj, constraints)
+        
+        prob.solve()
+        
+        K = -Y.value*np.linalg.inv(X.value)
+        return K, None, None
+
+    
     X = scipy.linalg.solve_continuous_are(A, Binput, C1.T*C1, D12.T*D12)
 
     K = scipy.linalg.inv(D12.T*D12)*Binput.T*X
