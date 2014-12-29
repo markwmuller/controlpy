@@ -274,6 +274,78 @@ def system_norm_H2(Acl, Bdisturbance, C, useLMI = False):
     return np.sqrt(np.trace(C*P*C.T))
     
 
+def system_norm_Hinf_LMI(A, Bdisturbance, C, D = None):
+    '''Compute a system's Hinfinity norm, using an LMI approach.
+    
+    Acl, Bdisturbance are system matrices, describing the systems dynamics:
+     dx/dt = Acl*x  + Bdisturbance*v
+    where x is the system state and v is the disturbance.
+    
+    The system output is:
+     z = C*x + D*v
+    
+    The matrix Acl must be Hurwitz for the Hinf norm to be finite. 
+    
+    The norm is found by iterating over the Riccati equation. The search can 
+    be sped up by providing lower and upper bounds for the norm. If ommitted, 
+    these are determined automatically. 
+    The search proceeds via bisection, and terminates when a specified relative
+    tolerance is achieved.
+     
+    Parameters
+    ----------
+    A  : (n, n) Matrix
+         Input
+    Bdisturbance : (n, m) Matrix
+         Input
+    C : (q, n) Matrix
+         Input
+    D : (q,m) Matrix
+         Input (optional)
+
+    Returns
+    -------
+    Jinf : Systems Hinf norm.
+    
+    See: Robust Controller Design By Convex Optimization, Alireza Karimi Laboratoire d'Automatique, EPFL
+    '''
+    
+    if not is_hurwitz(A):
+        return np.Inf
+    
+    import cvxpy, cvxopt
+
+    n = A.shape[0]
+    ndist = Bdisturbance.shape[1]
+    nout  = C.shape[0]
+
+    X = cvxpy.Semidef(n)
+    g = cvxpy.Variable()
+    
+    if D is None:
+        D = np.matrix(np.zeros([nout, ndist]))
+        
+    r1 = cvxpy.hstack(cvxpy.hstack(A.T*X+X*A, X*Bdisturbance), C.T)
+    r2 = cvxpy.hstack(cvxpy.hstack(Bdisturbance.T*X, -g*cvxopt.matrix(np.eye(ndist,ndist))), D.T)
+    r3 = cvxpy.hstack(cvxpy.hstack(C, D), -g*cvxopt.matrix(np.eye(nout,nout)))
+    tmp = cvxpy.vstack(cvxpy.vstack(r1,r2),r3)
+                        
+    constraints = [tmp == -cvxpy.Semidef(n + ndist + nout),
+                  ]
+
+    obj = cvxpy.Minimize(g)
+
+    prob = cvxpy.Problem(obj, constraints)
+    
+    prob.solve()
+    
+    if not prob.status == cvxpy.OPTIMAL:
+        return None
+    
+    return g.value
+
+    
+
 def system_norm_Hinf(Acl, Bdisturbance, C, D = None, lowerBound = 0, upperBound = np.inf, relTolerance = 1e-3):
     '''Compute a system's Hinfinity norm.
     
