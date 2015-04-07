@@ -362,3 +362,36 @@ def system_norm_Hinf(Acl, Bdisturbance, C, D = None, lowerBound = 0, upperBound 
     
     return upperBound
     
+
+
+def discretise_time(A, B, dt):
+    '''Compute the exact discretization of the continuous system A,B.
+    
+    Goes from a description 
+     d/dt x(t) = A*x(t) + B*u(t)
+     u(t)  = ud[k] for t in [k*dt, (k+1)*dt)
+    to the description
+     xd[k+1] = Ad*xd[k] + Bd*ud[k]
+    where
+     xd[k] := x(k*dt)
+     
+    Returns: Ad, Bd
+    '''
+    
+    nstates = A.shape[0]
+    ninputs = B.shape[1]
+
+    M = np.matlib.zeros([nstates+ninputs,nstates+ninputs])
+    M[:nstates,:nstates] = A
+    M[:nstates, nstates:] = B
+    
+    Md = scipy.linalg.expm(M*dt)
+    Ad = Md[:nstates, :nstates]
+    Bd = Md[:nstates, nstates:]
+
+    return Ad, Bd
+    
+
+
+    
+    

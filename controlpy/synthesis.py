@@ -68,6 +68,33 @@ def controller_lqr_discrete_time(A, B, Q, R):
     return K, X, eigVals
 
 
+def controller_lqr_discrete_from_continuous_time(A, B, Q, R, dt):
+    """Solve the discrete time LQR controller for a continuous time system.
+    
+    A and B are system matrices, describing the systems dynamics:
+     dx/dt = A x + B u
+    
+    The controller minimizes the infinite horizon quadratic cost function:
+     cost = integral (x.T*Q*x + u.T*R*u) dt
+    where Q is a positive semidefinite matrix, and R is positive definite matrix.
+    
+    The controller is implemented to run at discrete times, at a rate given by
+     onboard_dt, 
+    i.e. u[k] = -K*x(k*t)
+    Discretization is done by zero order hold.
+    
+    Returns K, X, eigVals:
+    Returns gain the optimal gain K, the solution matrix X, and the closed loop system eigenvalues.
+    The optimal input is then computed as:
+     input: u = -K*x
+    """
+    #ref Bertsekas, p.151
+    
+    Ad, Bd = analysis.discretise_time(A, B, dt)
+
+    return controller_lqr_discrete_time(Ad, Bd, Q, R)
+
+
 
 def controller_H2_state_feedback(A, Binput, Bdist, C1, D12):
     """Solve for the optimal H2 static state feedback controller.
