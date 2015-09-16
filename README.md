@@ -7,14 +7,14 @@ Current capabilities:
 
 1. System analysis:
 	1. Test whether a system is stable, controllable, stabilisable, observable, or stabilisable.
-  2. Get the uncontrollable/unobservable modes
+	2. Get the uncontrollable/unobservable modes
 	3. Compute a system's controllability Gramian (finite horizon, and infinite horizon)
-  4. Compute a system's H2 and Hinfinity norm
+	4. Compute a system's H2 and Hinfinity norm
 2. Synthesis
-  1. Create continuous and discrete time LQR controllers
-  2. Full-information H2 optimal controller
-  3. H2 optimal observer
-  4. Full-information Hinf controller
+	1. Create continuous and discrete time LQR controllers
+	2. Full-information H2 optimal controller
+	3. H2 optimal observer
+	4. Full-information Hinf controller
 
 
 How to install
