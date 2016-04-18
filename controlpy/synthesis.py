@@ -122,7 +122,7 @@ def controller_H2_state_feedback(A, Binput, Bdist, C1, D12):
          Input
     Binput : (n, p) Matrix
          Input
-    C1 : (n, q) Matrix
+    C1 : (q, n) Matrix
          Input
     D12: (q, p) Matrix
          Input
@@ -203,7 +203,7 @@ def controller_Hinf_state_feedback(A, Binput, Bdist, C1, D12, stabilityBoundaryE
          Input
     Binput : (n, p) Matrix
          Input
-    C1 : (n, q) Matrix
+    C1 : (q, n) Matrix
          Input
     D12: (q, p) Matrix
          Input
