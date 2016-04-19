@@ -27,6 +27,8 @@ def uncontrollable_modes(A, B, returnEigenValues = False, tolerance=1e9):
     the corresponding eigenvalues.
     
     See Callier & Desoer "Linear System Theory", P. 253
+    
+    TODO: This can't work if we have repeated eigen-values!
     '''
 
     assert A.shape[0]==A.shape[1], "Matrix A is not square"
@@ -290,10 +292,8 @@ def system_norm_Hinf(Acl, Bdisturbance, C, D = None, lowerBound = 0, upperBound 
     
     '''
 
-
     if not is_hurwitz(Acl):
         return np.inf
-
     
     eps = 1e-10
     
@@ -385,7 +385,7 @@ def discretise_time(A, B, dt):
     nstates = A.shape[0]
     ninputs = B.shape[1]
 
-    M = np.matlib.zeros([nstates+ninputs,nstates+ninputs])
+    M = np.matrix(np.zeros([nstates+ninputs,nstates+ninputs]))
     M[:nstates,:nstates] = A
     M[:nstates, nstates:] = B
     
