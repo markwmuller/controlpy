@@ -8,15 +8,17 @@ import scipy.linalg
 import scipy.integrate
 
 
-def is_hurwitz(A):
+def is_hurwitz(A, tolerance = 1e-9):
     '''Test whether the matrix A is Hurwitz (i.e. asymptotically stable).
+     TODO: Define "tolerance"
     '''
-    
-    return max(np.real(np.linalg.eig(A)[0])) < 0
+    return max(np.real(np.linalg.eig(A)[0])) < -np.abs(tolerance)
 
 
-def uncontrollable_modes(A, B, returnEigenValues = False):
+def uncontrollable_modes(A, B, returnEigenValues = False, tolerance=1e9):
     '''Returns all the uncontrollable modes of the pair A,B.
+    
+    TODO: Define "tolerance"
     
     Does the PBH test for controllability for the system:
      dx = A*x + B*u
@@ -33,18 +35,18 @@ def uncontrollable_modes(A, B, returnEigenValues = False):
     nStates = A.shape[0]
     nInputs = B.shape[1]
 
-    eVal, eVec = np.linalg.eig(A)
+    eVal, eVec = np.linalg.eig(np.matrix(A)) # todo, matrix cast is ugly.
 
     uncontrollableModes = []
     uncontrollableEigenValues = []
 
     for e,v in zip(eVal, eVec.T):
         M = np.matrix(np.zeros([nStates,(nStates+nInputs)]), dtype=complex)
-        M[:,:nStates] = e*np.eye(nStates,nStates) - A
+        M[:,:nStates] = e*np.identity(nStates) - A
         M[:,nStates:] = B
         
         s = np.linalg.svd(M, compute_uv=False)
-        if min(s) == 0: 
+        if min(s) <= tolerance: 
             uncontrollableModes.append(v.T[:,0])
             uncontrollableEigenValues.append(e)
 
@@ -55,13 +57,14 @@ def uncontrollable_modes(A, B, returnEigenValues = False):
     
 
 
-def is_controllable(A, B):
+def is_controllable(A, B, tolerance=1e9):
     '''Compute whether the pair (A,B) is controllable.
+    TODO: Define "tolerance"
     
     Returns True if controllable, False otherwise.
     '''
 
-    if uncontrollable_modes(A, B):
+    if uncontrollable_modes(A, B, tolerance=tolerance):
         return False
     else:
         return True
@@ -105,7 +108,8 @@ def controllability_gramian(A, B, T = np.inf):
 
     if not np.isfinite(T):
         #Infinite time Gramian:
-        eigVals, eigVecs = scipy.linalg.eig(A)
+        #TODO: can replace this with the is_hurwitz test
+        eigVals, eigVecs = np.linalg.eig(A)
         assert np.max(np.real(eigVals)) < 0, "Can only compute infinite horizon Gramian for a stable system."
         
         Wc = scipy.linalg.solve_lyapunov(A, -B*B.T)
