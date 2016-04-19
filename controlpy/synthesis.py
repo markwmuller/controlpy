@@ -32,7 +32,7 @@ def controller_lqr(A, B, Q, R):
     X = scipy.linalg.solve_continuous_are(A, B, Q, R)
     
     #compute the LQR gain
-    K = np.dot(scipy.linalg.inv(R),(np.dot(B.T,X)))
+    K = np.dot(np.linalg.inv(R),(np.dot(B.T,X)))
     
     eigVals = np.linalg.eigvals(A-np.dot(B,K))
     
@@ -61,7 +61,7 @@ def controller_lqr_discrete_time(A, B, Q, R):
     X = scipy.linalg.solve_discrete_are(A, B, Q, R)
     
     #compute the LQR gain
-    K = np.dot(scipy.linalg.inv(np.dot(np.dot(B.T,X),B)+R),(np.dot(np.dot(B.T,X),A)))  
+    K = np.dot(np.linalg.inv(np.dot(np.dot(B.T,X),B)+R),(np.dot(np.dot(B.T,X),A)))  
     
     eigVals = np.linalg.eigvals(A-np.dot(B,K))
     
@@ -139,7 +139,7 @@ def controller_H2_state_feedback(A, Binput, Bdist, C1, D12):
 
     X = scipy.linalg.solve_continuous_are(A, Binput, C1.T*C1, D12.T*D12)
 
-    K = scipy.linalg.inv(D12.T*D12)*Binput.T*X
+    K = np.linalg.inv(D12.T*D12)*Binput.T*X
 
     J = np.sqrt(np.trace(Bdist.T*X*Bdist))
     
