@@ -15,7 +15,7 @@ def is_hurwitz(A, tolerance = 1e-9):
     return max(np.real(np.linalg.eig(A)[0])) < -np.abs(tolerance)
 
 
-def uncontrollable_modes(A, B, returnEigenValues = False, tolerance=1e9):
+def uncontrollable_modes(A, B, returnEigenValues = False, tolerance=-1e9):
     '''Returns all the uncontrollable modes of the pair A,B.
     
     TODO: Define "tolerance"
@@ -148,7 +148,7 @@ def unobservable_modes(C, A, returnEigenValues = False):
     See Callier & Desoer "Linear System Theory", P. 253
     '''
 
-    return uncontrollable_modes(A.getH(), C.getH(), returnEigenValues)
+    return uncontrollable_modes(A.conj().T, C.conj().T, returnEigenValues)
 
 
 def is_observable(C, A):
@@ -157,7 +157,7 @@ def is_observable(C, A):
     Returns True if observable, False otherwise.
     '''
     
-    return is_controllable(A.getH(), C.getH())
+    return is_controllable(A.conj().T, C.conj().T)
 
 
 def is_detectable(C, A):
@@ -166,7 +166,7 @@ def is_detectable(C, A):
     Returns True if detectable, False otherwise.
     '''
 
-    return is_stabilisable(A.getH(), C.getH())
+    return is_stabilisable(A.conj().T, C.conj().T)
 
 
 #TODO
@@ -328,7 +328,7 @@ def system_norm_Hinf(Acl, Bdisturbance, C, D = None, lowerBound = 0, upperBound 
             #The ARE has to return a pos. semidefinite solution, but X is not
             return False, None  
   
-        CL = A + B*np.linalg.inv(-Rric)*(B.T*X + D.T*C)
+        CL = A + B*np.linalg.inv(-Rric)*(B.T.dot(X) + D.T.dot(C))
         eigs = np.linalg.eig(CL)[0]
           
         return (np.max(np.real(eigs)) < -eps), X

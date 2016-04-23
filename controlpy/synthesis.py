@@ -137,11 +137,11 @@ def controller_H2_state_feedback(A, Binput, Bdist, C1, D12):
     
     """
 
-    X = scipy.linalg.solve_continuous_are(A, Binput, C1.T*C1, D12.T*D12)
+    X = scipy.linalg.solve_continuous_are(A, Binput, C1.T.dot(C1), D12.T.dot(D12))
 
-    K = np.linalg.inv(D12.T*D12)*Binput.T*X
+    K = np.linalg.inv(D12.T.dot(D12)).dot(Binput.T).dot(X)
 
-    J = np.sqrt(np.trace(Bdist.T*X*Bdist))
+    J = np.sqrt(np.trace(Bdist.T.dot(X.dot(Bdist))))
     
     return K, X, J
 
@@ -226,8 +226,8 @@ def controller_Hinf_state_feedback(A, Binput, Bdist, C1, D12, stabilityBoundaryE
     """
         
     assert analysis.is_stabilisable(A, Binput), '(A, Binput) must be stabilisable'
-    assert np.linalg.det(D12.T*D12), 'D12.T*D12 must be invertible'
-    assert np.max(np.abs(D12.T*C1))==0, 'D12.T*C1 must be zero'
+    assert np.linalg.det(D12.T.dot(D12)), 'D12.T*D12 must be invertible'
+    assert np.max(np.abs(D12.T.dot(C1)))==0, 'D12.T*C1 must be zero'
     tmp = analysis.unobservable_modes(C1, A, returnEigenValues=True)[1]
     if tmp:
         assert np.max(np.abs(np.real(tmp)))>0, 'The pair (C1,A) must have no unobservable modes on imag. axis'
@@ -247,8 +247,8 @@ def controller_Hinf_state_feedback(A, Binput, Bdist, C1, D12, stabilityBoundaryE
         
     R = np.matrix(np.zeros([B.shape[1], B.shape[1]]))
     #we fill the upper left of R later.
-    R[Bdist.shape[1]:,Bdist.shape[1]:] = D12.T*D12
-    Q = C1.T*C1
+    R[Bdist.shape[1]:,Bdist.shape[1]:] = D12.T.dot(D12)
+    Q = C1.T.dot(C1)
        
     #Define a helper function:
     def has_stable_solution(g, A, B, Q, R, eps):
@@ -273,7 +273,7 @@ def controller_Hinf_state_feedback(A, Binput, Bdist, C1, D12, stabilityBoundaryE
             return False, None  
  
    
-        CL = A - Binput*np.linalg.inv(D12.T*D12)*Binput.T*X + g**(-2)*Bdist*Bdist.T*X 
+        CL = A - Binput.dot(np.linalg.inv(D12.T.dot(D12))).dot(Binput.T).dot(X) + g**(-2)*Bdist.dot(Bdist.T).dot(X)
         eigs = np.linalg.eigvals(CL)
            
         return (np.max(np.real(eigs)) < -eps), X
@@ -318,7 +318,7 @@ def controller_Hinf_state_feedback(A, Binput, Bdist, C1, D12, stabilityBoundaryE
         stab, X = has_stable_solution(g, A, B, Q, R, stabilityBoundaryEps)
         assert stab, 'Sub-optimal solution not found!'
 
-    K = np.linalg.inv(D12.T*D12)*Binput.T*X
+    K = np.linalg.inv(D12.T.dot(D12)).dot(Binput.T).dot(X)
     
     J = g
     return K, X, J
