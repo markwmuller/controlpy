@@ -292,12 +292,6 @@ def system_norm_Hinf_LMI(A, Bdisturbance, C, D = None):
     
     The matrix Acl must be Hurwitz for the Hinf norm to be finite. 
     
-    The norm is found by iterating over the Riccati equation. The search can 
-    be sped up by providing lower and upper bounds for the norm. If ommitted, 
-    these are determined automatically. 
-    The search proceeds via bisection, and terminates when a specified relative
-    tolerance is achieved.
-     
     Parameters
     ----------
     A  : (n, n) Matrix
@@ -336,8 +330,7 @@ def system_norm_Hinf_LMI(A, Bdisturbance, C, D = None):
     r3 = cvxpy.hstack(cvxpy.hstack(C, D), -g*cvxopt.matrix(np.eye(nout,nout)))
     tmp = cvxpy.vstack(cvxpy.vstack(r1,r2),r3)
                         
-    constraints = [tmp == -cvxpy.Semidef(n + ndist + nout),
-                  ]
+    constraints = [tmp == -cvxpy.Semidef(n + ndist + nout)]
 
     obj = cvxpy.Minimize(g)
 
