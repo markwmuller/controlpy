@@ -22,7 +22,7 @@ How to install
 Install using pypi, or direct from the Github repository:
 
 1. Clone this repository somewhere convenient: `git clone https://github.com/markwmuller/controlpy.git`
-2. Install the package (we'll do a "develop" install, so any changes are immediately available):  `python setup.py develop` (you'll probably need to be administrator)
+2. Install the package (we'll do a "develop" install, so any changes are immediately available):  `pip install -e .` (you'll probably need to be administrator)
 3. You're ready to go: try running the examples in the `example` folder.
 
 
