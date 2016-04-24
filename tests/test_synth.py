@@ -12,6 +12,8 @@ import controlpy
 
 import unittest
 
+tolerance = 1e-4
+
 class TestSynthesis(unittest.TestCase):
 
     def test_h2_hinf(self):
@@ -25,10 +27,16 @@ class TestSynthesis(unittest.TestCase):
             K2sl = matType([[  - 4.52044  ,- 8.2992226  ]])
             X2sl = matType([[9.7171888,    4.52044],[ 4.52044,     8.2992226  ]])
             
-            K2, X2, J2 = controlpy.synthesis.controller_H2_state_feedback(A, B, Bdist, C1, D12)
+            K2, X2, J2 = controlpy.synthesis.controller_H2_state_feedback(A, B, Bdist, C1, D12, useLMI=False)
             
-            self.assertLess(np.linalg.norm(K2+K2sl), 1e-6) #note sign difference
-            self.assertLess(np.linalg.norm(X2-X2sl), 1e-6) 
+            self.assertLess(np.linalg.norm(K2+K2sl), tolerance) #note sign difference
+            self.assertLess(np.linalg.norm(X2-X2sl), tolerance) 
+
+            K2LMI, _, _ = controlpy.synthesis.controller_H2_state_feedback(A, B, Bdist, C1, D12, useLMI=True)
+
+            self.assertLess(np.linalg.norm(K2-K2LMI), tolerance) #note sign difference
+
+            
             
 #             Kinf, Xinf, Jinf = controlpy.synthesis.controller_Hinf_state_feedback(A, B, Bdist, C1, D12, subOptimality=1.1)
 #             print(Kinf)
