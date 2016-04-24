@@ -8,15 +8,17 @@ import scipy.linalg
 import scipy.integrate
 
 
-def is_hurwitz(A):
+def is_hurwitz(A, tolerance = 1e-9):
     '''Test whether the matrix A is Hurwitz (i.e. asymptotically stable).
+     TODO: Define "tolerance"
     '''
-    
-    return max(np.real(np.linalg.eig(A)[0])) < 0
+    return max(np.real(np.linalg.eig(A)[0])) < -np.abs(tolerance)
 
 
-def uncontrollable_modes(A, B, returnEigenValues = False):
+def uncontrollable_modes(A, B, returnEigenValues = False, tolerance=-1e9):
     '''Returns all the uncontrollable modes of the pair A,B.
+    
+    TODO: Define "tolerance"
     
     Does the PBH test for controllability for the system:
      dx = A*x + B*u
@@ -25,6 +27,8 @@ def uncontrollable_modes(A, B, returnEigenValues = False):
     the corresponding eigenvalues.
     
     See Callier & Desoer "Linear System Theory", P. 253
+    
+    TODO: This can't work if we have repeated eigen-values!
     '''
 
     assert A.shape[0]==A.shape[1], "Matrix A is not square"
@@ -33,18 +37,18 @@ def uncontrollable_modes(A, B, returnEigenValues = False):
     nStates = A.shape[0]
     nInputs = B.shape[1]
 
-    eVal, eVec = np.linalg.eig(A)
+    eVal, eVec = np.linalg.eig(np.matrix(A)) # todo, matrix cast is ugly.
 
     uncontrollableModes = []
     uncontrollableEigenValues = []
 
     for e,v in zip(eVal, eVec.T):
         M = np.matrix(np.zeros([nStates,(nStates+nInputs)]), dtype=complex)
-        M[:,:nStates] = e*np.eye(nStates,nStates) - A
+        M[:,:nStates] = e*np.identity(nStates) - A
         M[:,nStates:] = B
         
         s = np.linalg.svd(M, compute_uv=False)
-        if min(s) == 0: 
+        if min(s) <= tolerance: 
             uncontrollableModes.append(v.T[:,0])
             uncontrollableEigenValues.append(e)
 
@@ -55,13 +59,14 @@ def uncontrollable_modes(A, B, returnEigenValues = False):
     
 
 
-def is_controllable(A, B):
+def is_controllable(A, B, tolerance=1e9):
     '''Compute whether the pair (A,B) is controllable.
+    TODO: Define "tolerance"
     
     Returns True if controllable, False otherwise.
     '''
 
-    if uncontrollable_modes(A, B):
+    if uncontrollable_modes(A, B, tolerance=tolerance):
         return False
     else:
         return True
@@ -105,7 +110,8 @@ def controllability_gramian(A, B, T = np.inf):
 
     if not np.isfinite(T):
         #Infinite time Gramian:
-        eigVals, eigVecs = scipy.linalg.eig(A)
+        #TODO: can replace this with the is_hurwitz test
+        eigVals, eigVecs = np.linalg.eig(A)
         assert np.max(np.real(eigVals)) < 0, "Can only compute infinite horizon Gramian for a stable system."
         
         Wc = scipy.linalg.solve_lyapunov(A, -B*B.T)
@@ -142,7 +148,7 @@ def unobservable_modes(C, A, returnEigenValues = False):
     See Callier & Desoer "Linear System Theory", P. 253
     '''
 
-    return uncontrollable_modes(A.getH(), C.getH(), returnEigenValues)
+    return uncontrollable_modes(A.conj().T, C.conj().T, returnEigenValues)
 
 
 def is_observable(C, A):
@@ -151,7 +157,7 @@ def is_observable(C, A):
     Returns True if observable, False otherwise.
     '''
     
-    return is_controllable(A.getH(), C.getH())
+    return is_controllable(A.conj().T, C.conj().T)
 
 
 def is_detectable(C, A):
@@ -160,7 +166,7 @@ def is_detectable(C, A):
     Returns True if detectable, False otherwise.
     '''
 
-    return is_stabilisable(A.getH(), C.getH())
+    return is_stabilisable(A.conj().T, C.conj().T)
 
 
 #TODO
@@ -387,10 +393,8 @@ def system_norm_Hinf(Acl, Bdisturbance, C, D = None, lowerBound = 0, upperBound 
     
     '''
 
-
     if not is_hurwitz(Acl):
         return np.inf
-
     
     eps = 1e-10
     
@@ -425,7 +429,7 @@ def system_norm_Hinf(Acl, Bdisturbance, C, D = None, lowerBound = 0, upperBound 
             #The ARE has to return a pos. semidefinite solution, but X is not
             return False, None  
   
-        CL = A + B*np.linalg.inv(-Rric)*(B.T*X + D.T*C)
+        CL = A + B*np.linalg.inv(-Rric)*(B.T.dot(X) + D.T.dot(C))
         eigs = np.linalg.eig(CL)[0]
           
         return (np.max(np.real(eigs)) < -eps), X
@@ -462,4 +466,37 @@ def system_norm_Hinf(Acl, Bdisturbance, C, D = None, lowerBound = 0, upperBound 
     assert X is not None, 'No solution found! Check supplied upper bound'
     
     return upperBound
+    
+
+
+def discretise_time(A, B, dt):
+    '''Compute the exact discretization of the continuous system A,B.
+    
+    Goes from a description 
+     d/dt x(t) = A*x(t) + B*u(t)
+     u(t)  = ud[k] for t in [k*dt, (k+1)*dt)
+    to the description
+     xd[k+1] = Ad*xd[k] + Bd*ud[k]
+    where
+     xd[k] := x(k*dt)
+     
+    Returns: Ad, Bd
+    '''
+    
+    nstates = A.shape[0]
+    ninputs = B.shape[1]
+
+    M = np.matrix(np.zeros([nstates+ninputs,nstates+ninputs]))
+    M[:nstates,:nstates] = A
+    M[:nstates, nstates:] = B
+    
+    Md = scipy.linalg.expm(M*dt)
+    Ad = Md[:nstates, :nstates]
+    Bd = Md[:nstates, nstates:]
+
+    return Ad, Bd
+    
+
+
+    
     
