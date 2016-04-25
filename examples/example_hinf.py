@@ -71,7 +71,7 @@ def get_hinf(A, Binput, Bdist, C1, D12, gammaLB=0, gammaUB=np.inf, gammaRelTol=1
 
 
 # Example system is a double integrator:
-A = np.matrix([[-1,100],[0,1]],dtype=np.float)
+A = np.matrix([[-10,1],[0,-1]],dtype=np.float)
 B = np.matrix([[0],[1]],dtype=np.float)
 
 Bdist = np.matrix([[1,0],[0,1]],dtype=np.float)
@@ -79,22 +79,24 @@ Bdist = np.matrix([[1,0],[0,1]],dtype=np.float)
 C = np.matrix([[1,0],[0,1],[0,0]],dtype=np.float)
 D12 = np.matrix([[0,0,1]],dtype=np.float).T
 
-gmin = 1.5
+gmin = 0
+gmax = np.inf
 
 # Compute the LQR controller
 k_H2, _, _ = controlpy.synthesis.controller_H2_state_feedback(A, B, Bdist, C, D12, useLMI=True)
-k_Hinf, _, J = controlpy.synthesis.controller_Hinf_state_feedback(A, B, Bdist, C, D12, gammaLB=gmin)
+k_Hinf, _, J = controlpy.synthesis.controller_Hinf_state_feedback(A, B, Bdist, C, D12, gammaLB=gmin, gammaUB=gmax)
 
 print('H2:')
 print(k_H2)
 print('Hinf:', J)
 print(k_Hinf)
 
-k_Hnew, g = get_hinf(A, B, Bdist, C, D12, gammaLB=gmin)
+k_Hnew, g = get_hinf(A, B, Bdist, C, D12, gammaLB=gmin, gammaUB=gmax)
 
 print('new lmi:', g)
 print(k_Hnew)
 
+print('H2:      ', controlpy.analysis.system_norm_Hinf(A-B*k_H2, Bdist, C-D12.dot(k_H2)), '\t', controlpy.analysis.system_norm_Hinf_LMI(A-B*k_H2, Bdist, C - D12.dot(k_H2)))
 print('ricatti: ', controlpy.analysis.system_norm_Hinf(A-B*k_Hinf, Bdist, C-D12.dot(k_Hinf)), '\t', controlpy.analysis.system_norm_Hinf_LMI(A-B*k_Hinf, Bdist, C - D12.dot(k_Hinf)))
 print('new:     ', controlpy.analysis.system_norm_Hinf(A-B*k_Hnew, Bdist, C-D12.dot(k_Hnew)), '\t', controlpy.analysis.system_norm_Hinf_LMI(A-B*k_Hnew, Bdist, C - D12.dot(k_Hnew)))
 
