@@ -336,7 +336,11 @@ def system_norm_Hinf_LMI(A, Bdisturbance, C, D = None):
 
     prob = cvxpy.Problem(obj, constraints)
     
-    prob.solve()
+    try:
+        prob.solve()#solver='CVXOPT', kktsolver='robust')
+    except cvxpy.error.SolverError:
+        print('Solution not found!')
+        return None
     
     if not prob.status == cvxpy.OPTIMAL:
         return None
@@ -400,16 +404,16 @@ def system_norm_Hinf(Acl, Bdisturbance, C, D = None, lowerBound = 0, upperBound 
         '''Is the given gamma an upper bound for the Hinf gain?
         '''
         #Construct the R matrix:
-        Rric = -gamma**2*np.matrix(np.eye(D.shape[1],D.shape[1])) + D.T*D
+        Rric = -gamma**2*np.matrix(np.eye(D.shape[1],D.shape[1])) + D.T.dot(D)
         #test that Rric is negative definite
-        eigsR = np.linalg.eig(Rric)[0]
+        eigsR = np.linalg.eigvals(Rric)
         if max(np.real(eigsR)) > -eps:
             return False, None
         
         #matrices for the Ricatti equation:
-        Aric = A - B*np.linalg.inv(Rric)*D.T*C
+        Aric = A - B.dot(np.linalg.inv(Rric)).dot(D.T).dot(C)
         Bric = B
-        Qric = C.T*C - C.T*D*np.linalg.inv(Rric)*D.T*C
+        Qric = C.T.dot(C) - C.T.dot(D).dot(np.linalg.inv(Rric)).dot(D.T).dot(C)
 
         try:
             X = scipy.linalg.solve_continuous_are(Aric, Bric, Qric, Rric)
@@ -417,13 +421,13 @@ def system_norm_Hinf(Acl, Bdisturbance, C, D = None, lowerBound = 0, upperBound 
             #Couldn't solve
             return False, None
                  
-        eigsX = np.linalg.eig(X)[0]
+        eigsX = np.linalg.eigvals(X)
         if (np.min(np.real(eigsX)) < 0) or (np.sum(np.abs(np.imag(eigsX)))>eps):
             #The ARE has to return a pos. semidefinite solution, but X is not
             return False, None  
   
-        CL = A + B*np.linalg.inv(-Rric)*(B.T.dot(X) + D.T.dot(C))
-        eigs = np.linalg.eig(CL)[0]
+        CL = A + B.dot(np.linalg.inv(-Rric)).dot(B.T.dot(X) + D.T.dot(C))
+        eigs = np.linalg.eigvals(CL)
           
         return (np.max(np.real(eigs)) < -eps), X
     

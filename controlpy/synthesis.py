@@ -252,7 +252,7 @@ def controller_Hinf_state_feedback(A, Binput, Bdist, C1, D12, stabilityBoundaryE
         Hinf optimal controller gain
     X : (n, n) Matrix
         Solution to the Ricatti equation
-    J : Minimum cost value (gamma)
+    J : An upper bound on the minimum cost value (gamma)
     """
         
     assert analysis.is_stabilisable(A, Binput), '(A, Binput) must be stabilisable'
