@@ -12,7 +12,105 @@ import controlpy
 
 import unittest
 
-class TestIsHurwitz(unittest.TestCase):
+import cvxpy, cvxopt
+def sys_norm_h2_LMI(Acl, Bdisturbance, C):
+    #doesn't work very well, if problem poorly scaled Riccati works better.
+    #Dullerud p 210
+    
+    import cvxpy
+    
+    n = Acl.shape[0]
+    X = cvxpy.Semidef(n)
+    Y = cvxpy.Semidef(n)
+
+    constraints = [ Acl*X + X*Acl.T + Bdisturbance*Bdisturbance.T == -Y,
+                  ]
+
+    obj = cvxpy.Minimize(cvxpy.trace(Y))
+
+    prob = cvxpy.Problem(obj, constraints)
+    
+    prob.solve()
+    eps = 1e-16
+    if np.max(np.linalg.eigvals((-Acl*X - X*Acl.T - Bdisturbance*Bdisturbance.T).value)) > -eps:
+        print('Acl*X + X*Acl.T +Bdisturbance*Bdisturbance.T is not neg def.')
+        return np.Inf
+
+    if np.min(np.linalg.eigvals(X.value)) < eps:
+        print('X is not pos def.')
+        return np.Inf
+
+    return np.sqrt(np.trace(C*X.value*C.T))
+
+
+def sys_norm_hinf_LMI(A, Bdisturbance, C, D = None):
+    '''Compute a system's Hinfinity norm, using an LMI approach.
+    
+    Acl, Bdisturbance are system matrices, describing the systems dynamics:
+     dx/dt = Acl*x  + Bdisturbance*v
+    where x is the system state and v is the disturbance.
+    
+    The system output is:
+     z = C*x + D*v
+    
+    The matrix Acl must be Hurwitz for the Hinf norm to be finite. 
+    
+    Parameters
+    ----------
+    A  : (n, n) Matrix
+         Input
+    Bdisturbance : (n, m) Matrix
+         Input
+    C : (q, n) Matrix
+         Input
+    D : (q,m) Matrix
+         Input (optional)
+
+    Returns
+    -------
+    Jinf : Systems Hinf norm.
+    
+    See: Robust Controller Design By Convex Optimization, Alireza Karimi Laboratoire d'Automatique, EPFL
+    '''
+    
+    if not controlpy.analysis.is_hurwitz(A):
+        return np.Inf
+
+    n = A.shape[0]
+    ndist = Bdisturbance.shape[1]
+    nout  = C.shape[0]
+
+    X = cvxpy.Semidef(n)
+    g = cvxpy.Variable()
+    
+    if D is None:
+        D = np.matrix(np.zeros([nout, ndist]))
+        
+    r1 = cvxpy.hstack(cvxpy.hstack(A.T*X+X*A, X*Bdisturbance), C.T)
+    r2 = cvxpy.hstack(cvxpy.hstack(Bdisturbance.T*X, -g*cvxopt.matrix(np.eye(ndist,ndist))), D.T)
+    r3 = cvxpy.hstack(cvxpy.hstack(C, D), -g*cvxopt.matrix(np.eye(nout,nout)))
+    tmp = cvxpy.vstack(cvxpy.vstack(r1,r2),r3)
+                        
+    constraints = [tmp == -cvxpy.Semidef(n + ndist + nout)]
+
+    obj = cvxpy.Minimize(g)
+
+    prob = cvxpy.Problem(obj, constraints)
+    
+    try:
+        prob.solve()#solver='CVXOPT', kktsolver='robust')
+    except cvxpy.error.SolverError:
+        print('Solution not found!')
+        return None
+    
+    if not prob.status == cvxpy.OPTIMAL:
+        return None
+    
+    return g.value
+
+
+
+class TestAnalysis(unittest.TestCase):
 
     def test_scalar_hurwitz(self):
         self.assertTrue(controlpy.analysis.is_hurwitz(np.matrix([[-1]])))
@@ -129,12 +227,12 @@ class TestIsHurwitz(unittest.TestCase):
             h2norm = controlpy.analysis.system_norm_H2(A, B, C)
             hinfnorm = controlpy.analysis.system_norm_Hinf(A, B, C)
             
-            h2norm_sl = 0.4082483
-            hinfnorm_sl = 0.6666667
+            h2norm_lmi = sys_norm_h2_LMI(A, B, C)
+            hinfnorm_lmi = sys_norm_hinf_LMI(A, B, C)
 
             tol = 1e-3
-            self.assertLess(np.linalg.norm(h2norm-h2norm_sl), tol)
-            self.assertLess(np.linalg.norm(hinfnorm-hinfnorm_sl), tol)
+            self.assertLess(np.linalg.norm(h2norm-h2norm_lmi), tol)
+            self.assertLess(np.linalg.norm(hinfnorm-hinfnorm_lmi), tol)
            
     #TODO:
     # - observability tests, similar to controllability
