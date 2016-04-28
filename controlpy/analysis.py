@@ -10,7 +10,10 @@ import scipy.integrate
 
 def is_hurwitz(A, tolerance = 1e-9):
     '''Test whether the matrix A is Hurwitz (i.e. asymptotically stable).
-     TODO: Define "tolerance"
+    
+    tolerance defines the minimum distance we should be from the imaginary axis 
+     to be considered stable.
+    
     '''
     return max(np.real(np.linalg.eig(A)[0])) < -np.abs(tolerance)
 
@@ -18,7 +21,8 @@ def is_hurwitz(A, tolerance = 1e-9):
 def uncontrollable_modes(A, B, returnEigenValues = False, tolerance=-1e9):
     '''Returns all the uncontrollable modes of the pair A,B.
     
-    TODO: Define "tolerance"
+    tolerance defines the minimum distance we should be from the imaginary axis 
+     to be considered stable.
     
     Does the PBH test for controllability for the system:
      dx = A*x + B*u
@@ -28,7 +32,7 @@ def uncontrollable_modes(A, B, returnEigenValues = False, tolerance=-1e9):
     
     See Callier & Desoer "Linear System Theory", P. 253
     
-    TODO: This can't work if we have repeated eigen-values!
+    NOTE!: This can't work if we have repeated eigen-values! TODO FIXME!
     '''
 
     assert A.shape[0]==A.shape[1], "Matrix A is not square"
@@ -61,7 +65,8 @@ def uncontrollable_modes(A, B, returnEigenValues = False, tolerance=-1e9):
 
 def is_controllable(A, B, tolerance=1e9):
     '''Compute whether the pair (A,B) is controllable.
-    TODO: Define "tolerance"
+    tolerance defines the minimum distance we should be from the imaginary axis 
+     to be considered stable.
     
     Returns True if controllable, False otherwise.
     '''
@@ -110,9 +115,7 @@ def controllability_gramian(A, B, T = np.inf):
 
     if not np.isfinite(T):
         #Infinite time Gramian:
-        #TODO: can replace this with the is_hurwitz test
-        eigVals, eigVecs = np.linalg.eig(A)
-        assert np.max(np.real(eigVals)) < 0, "Can only compute infinite horizon Gramian for a stable system."
+        assert is_hurwitz(A), "Can only compute infinite horizon Gramian for a stable system."
         
         Wc = scipy.linalg.solve_lyapunov(A, -B*B.T)
         return Wc
