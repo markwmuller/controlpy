@@ -7,7 +7,7 @@ from __future__ import division, print_function
 import numpy as np
 import scipy.linalg
 
-import analysis
+from controlpy import analysis
 
 
 def controller_lqr(A, B, Q, R):
