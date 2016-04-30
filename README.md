@@ -26,6 +26,10 @@ Install using pypi, or direct from the Github repository:
 3. You're ready to go: try running the examples in the `example` folder.
 
 
+Testing 
+-------
+If you want to run the unit tests, you'll need to install cvxpy.
+
 
 Licensing
 ---------
