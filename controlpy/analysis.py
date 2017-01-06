@@ -18,7 +18,7 @@ def is_hurwitz(A, tolerance = 1e-9):
     return max(np.real(np.linalg.eig(A)[0])) < -np.abs(tolerance)
 
 
-def uncontrollable_modes(A, B, returnEigenValues = False, tolerance=-1e9):
+def uncontrollable_modes(A, B, returnEigenValues = False, tolerance=1e-9):
     '''Returns all the uncontrollable modes of the pair A,B.
     
     tolerance defines the minimum distance we should be from the imaginary axis 
@@ -63,7 +63,7 @@ def uncontrollable_modes(A, B, returnEigenValues = False, tolerance=-1e9):
     
 
 
-def is_controllable(A, B, tolerance=1e9):
+def is_controllable(A, B, tolerance=1e-9):
     '''Compute whether the pair (A,B) is controllable.
     tolerance defines the minimum distance we should be from the imaginary axis 
      to be considered stable.
