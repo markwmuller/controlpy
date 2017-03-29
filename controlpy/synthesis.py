@@ -68,6 +68,36 @@ def controller_lqr_discrete_time(A, B, Q, R):
     return K, X, eigVals
 
 
+def estimator_kalman_steady_state_discrete_time(A, H, Q, R):
+    """Solve the discrete time, steady-state Kalman filter for a discrete time system.
+    
+    A and H are system matrices, describing the systems dynamics:
+     x[k+1] = A x[k] + B u[k] + v[k]
+     z[k]   = C x[k] + w[k]
+     
+    with v, w zero-mean noise sequences, and
+     Var[v[k]] = Q
+     Var[w[k]] = R
+    
+    and u[k] a known input
+    
+    Returns K, X, eigVals:
+    Returns gain the optimal filter gain K, the solution matrix X, and the closed loop system eigenvalues.
+    The estimate is then given by:
+     est[k] = (I-K*H)A est[k-1] + (I-K*H)B u[k] + K meas[k]
+    """
+
+    #first, try to solve the ricatti equation
+    X = scipy.linalg.solve_discrete_are(A.T, H.T, Q, R)
+    
+    #compute the LQR gain
+    K = X.dot(H.T).dot(np.linalg.inv(H.dot(X).dot(H.T)+R))
+    
+    eigVals = np.linalg.eigvals(np.identity(X.shape[0]) - K.dot(H)).dot(A)
+    
+    return K, X, eigVals
+
+
 def controller_lqr_discrete_from_continuous_time(A, B, Q, R, dt):
     """Solve the discrete time LQR controller for a continuous time system.
     

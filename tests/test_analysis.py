@@ -12,13 +12,10 @@ import controlpy
 
 import unittest
 
-import cvxpy, cvxopt
+import cvxpy
 def sys_norm_h2_LMI(Acl, Bdisturbance, C):
     #doesn't work very well, if problem poorly scaled Riccati works better.
     #Dullerud p 210
-    
-    import cvxpy
-    
     n = Acl.shape[0]
     X = cvxpy.Semidef(n)
     Y = cvxpy.Semidef(n)
@@ -87,8 +84,8 @@ def sys_norm_hinf_LMI(A, Bdisturbance, C, D = None):
         D = np.matrix(np.zeros([nout, ndist]))
         
     r1 = cvxpy.hstack(cvxpy.hstack(A.T*X+X*A, X*Bdisturbance), C.T)
-    r2 = cvxpy.hstack(cvxpy.hstack(Bdisturbance.T*X, -g*cvxopt.matrix(np.eye(ndist,ndist))), D.T)
-    r3 = cvxpy.hstack(cvxpy.hstack(C, D), -g*cvxopt.matrix(np.eye(nout,nout)))
+    r2 = cvxpy.hstack(cvxpy.hstack(Bdisturbance.T*X, -g*np.matrix(np.identity(ndist))), D.T)
+    r3 = cvxpy.hstack(cvxpy.hstack(C, D), -g*np.matrix(np.identity(nout)))
     tmp = cvxpy.vstack(cvxpy.vstack(r1,r2),r3)
                         
     constraints = [tmp == -cvxpy.Semidef(n + ndist + nout)]
@@ -218,20 +215,31 @@ class TestAnalysis(unittest.TestCase):
                  
             
 
-    def test_system_norms(self):
+    def test_system_norm_H2(self):
         for matType in [np.matrix, np.array]:
             A = matType([[-1,2],[0,-3]])
             B = matType([[0,1]]).T
             C = matType([[1,0]])
             
             h2norm = controlpy.analysis.system_norm_H2(A, B, C)
-            hinfnorm = controlpy.analysis.system_norm_Hinf(A, B, C)
             
             h2norm_lmi = sys_norm_h2_LMI(A, B, C)
-            hinfnorm_lmi = sys_norm_hinf_LMI(A, B, C)
 
             tol = 1e-3
             self.assertLess(np.linalg.norm(h2norm-h2norm_lmi), tol)
+            
+
+    def test_system_norm_Hinf(self):
+        for matType in [np.matrix, np.array]:
+            A = matType([[-1,2],[0,-3]])
+            B = matType([[0,1]]).T
+            C = matType([[1,0]])
+            
+            hinfnorm = controlpy.analysis.system_norm_Hinf(A, B, C)
+            
+            hinfnorm_lmi = sys_norm_hinf_LMI(A, B, C)
+
+            tol = 1e-3
             self.assertLess(np.linalg.norm(hinfnorm-hinfnorm_lmi), tol)
            
     #TODO:
