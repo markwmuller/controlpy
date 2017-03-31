@@ -93,7 +93,7 @@ def estimator_kalman_steady_state_discrete_time(A, H, Q, R):
     #compute the LQR gain
     K = X.dot(H.T).dot(np.linalg.inv(H.dot(X).dot(H.T)+R))
     
-    eigVals = np.linalg.eigvals(np.identity(X.shape[0]) - K.dot(H)).dot(A)
+    eigVals = np.linalg.eigvals( (np.identity(X.shape[0]) - K.dot(H)).dot(A) )
     
     return K, X, eigVals
 
