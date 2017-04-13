@@ -117,7 +117,7 @@ def controllability_gramian(A, B, T = np.inf):
         #Infinite time Gramian:
         assert is_hurwitz(A), "Can only compute infinite horizon Gramian for a stable system."
         
-        Wc = scipy.linalg.solve_lyapunov(A, -B*B.T)
+        Wc = scipy.linalg.solve_lyapunov(A, -B.dot(B.T))
         return Wc
     
     # We need to solve the finite time Gramian
@@ -251,7 +251,7 @@ def system_norm_H2(Acl, Bdisturbance, C):
     P = controllability_gramian(Acl, Bdisturbance)
     
     #output the gain
-    return np.sqrt(np.trace(C*P*C.T))
+    return np.sqrt(np.trace(C.dot(P).dot(C.T)))
     
 
 def system_norm_Hinf(Acl, Bdisturbance, C, D = None, lowerBound = 0, upperBound = np.inf, relTolerance = 1e-3):
@@ -309,16 +309,16 @@ def system_norm_Hinf(Acl, Bdisturbance, C, D = None, lowerBound = 0, upperBound 
         '''Is the given gamma an upper bound for the Hinf gain?
         '''
         #Construct the R matrix:
-        Rric = -gamma**2*np.matrix(np.eye(D.shape[1],D.shape[1])) + D.T*D
+        Rric = -gamma**2*np.matrix(np.eye(D.shape[1],D.shape[1])) + D.T.dot(D)
         #test that Rric is negative definite
         eigsR = np.linalg.eig(Rric)[0]
         if max(np.real(eigsR)) > -eps:
             return False, None
         
         #matrices for the Ricatti equation:
-        Aric = A - B*np.linalg.inv(Rric)*D.T*C
+        Aric = A - B.dot(np.linalg.inv(Rric)).dot(D.T).dot(C)
         Bric = B
-        Qric = C.T*C - C.T*D*np.linalg.inv(Rric)*D.T*C
+        Qric = C.T.dot(C) - C.T.dot(D).dot(np.linalg.inv(Rric)).dot(D.T).dot(C)
 
         try:
             X = scipy.linalg.solve_continuous_are(Aric, Bric, Qric, Rric)
@@ -331,7 +331,7 @@ def system_norm_Hinf(Acl, Bdisturbance, C, D = None, lowerBound = 0, upperBound 
             #The ARE has to return a pos. semidefinite solution, but X is not
             return False, None  
   
-        CL = A + B*np.linalg.inv(-Rric)*(B.T.dot(X) + D.T.dot(C))
+        CL = A + B.dot(np.linalg.inv(-Rric)).dot(B.T.dot(X) + D.T.dot(C))
         eigs = np.linalg.eig(CL)[0]
           
         return (np.max(np.real(eigs)) < -eps), X

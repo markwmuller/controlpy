@@ -16,6 +16,7 @@ setup(name='controlpy',
       packages=['controlpy'],
       zip_safe=False,
       classifiers=[],
+      install_requires=['numpy','scipy'],
       keywords='control lqr robust H2 Hinf Hinfinity',
       tests_require=['cvxpy'],
       )
