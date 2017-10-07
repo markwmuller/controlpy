@@ -312,7 +312,7 @@ def controller_Hinf_state_feedback(A, Binput, Bdist, C1, D12, stabilityBoundaryE
     X = None
     if np.isinf(gammaUB):
         #automatically choose an UB
-        gammaUB = np.max([1, gammaLB])
+        gammaUB = np.float(np.max([1, gammaLB]))
            
         #Find an upper bound:
         counter = 1

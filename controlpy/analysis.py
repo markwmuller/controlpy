@@ -78,6 +78,15 @@ def is_controllable(A, B, tolerance=1e-9):
 
 
 
+def is_stabilizable(A, B):
+    '''Compute whether the pair (A,B) is stabilisable.
+
+    Returns True if stabilisable, False otherwise.
+    '''
+    
+    return is_stabilisable(A, B)
+
+
 def is_stabilisable(A, B):
     '''Compute whether the pair (A,B) is stabilisable.
 
@@ -254,7 +263,7 @@ def system_norm_H2(Acl, Bdisturbance, C):
     return np.sqrt(np.trace(C.dot(P).dot(C.T)))
     
 
-def system_norm_Hinf(Acl, Bdisturbance, C, D = None, lowerBound = 0, upperBound = np.inf, relTolerance = 1e-3):
+def system_norm_Hinf(Acl, Bdisturbance, C, D = None, lowerBound = 0.0, upperBound = np.inf, relTolerance = 1e-3):
     '''Compute a system's Hinfinity norm.
     
     Acl, Bdisturbance are system matrices, describing the systems dynamics:
@@ -326,22 +335,26 @@ def system_norm_Hinf(Acl, Bdisturbance, C, D = None, lowerBound = 0, upperBound 
             #Couldn't solve
             return False, None
                  
-        eigsX = np.linalg.eig(X)[0]
+        eigsX = np.linalg.eigvals(X)
         if (np.min(np.real(eigsX)) < 0) or (np.sum(np.abs(np.imag(eigsX)))>eps):
             #The ARE has to return a pos. semidefinite solution, but X is not
             return False, None  
+        if np.max(np.linalg.svd(X-X.T, compute_uv=False)) > 1e-6:
+            #The ARE solution is not symmetric! Fail
+            return False, None  
+            
   
         CL = A + B.dot(np.linalg.inv(-Rric)).dot(B.T.dot(X) + D.T.dot(C))
-        eigs = np.linalg.eig(CL)[0]
+        eigs = np.linalg.eigvals(CL)
           
         return (np.max(np.real(eigs)) < -eps), X
     
-    #our ouptut ricatti solution
+    #our output ricatti solution
     X = None
     
     #Are we supplied an upper bound? 
     if not np.isfinite(upperBound):
-        upperBound = max([1,lowerBound])
+        upperBound = max([1.0,lowerBound])
         counter = 1
         while True:
             isOK, X2 = test_upper_bound(upperBound, Acl, Bdisturbance, C, D)
@@ -350,7 +363,7 @@ def system_norm_Hinf(Acl, Bdisturbance, C, D = None, lowerBound = 0, upperBound 
                 X = X2.copy()
                 break
 
-            upperBound *= 2
+            upperBound *= 2.0
             counter += 1
             assert counter<1024, 'Exceeded max. number of iterations searching for upper bound'
             
