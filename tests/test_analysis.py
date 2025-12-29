@@ -1,5 +1,3 @@
-from __future__ import print_function, division
-
 import os
 import sys
 sys.path.insert(0, os.path.abspath('..'))
@@ -10,6 +8,8 @@ np.random.seed(1234)
 
 import controlpy
 
+import slycot 
+
 import unittest
 
 import cvxpy
@@ -17,10 +17,10 @@ def sys_norm_h2_LMI(Acl, Bdisturbance, C):
     #doesn't work very well, if problem poorly scaled Riccati works better.
     #Dullerud p 210
     n = Acl.shape[0]
-    X = cvxpy.Semidef(n)
-    Y = cvxpy.Semidef(n)
+    X = cvxpy.Variable((n,n), PSD=True)
+    Y = cvxpy.Variable((n,n), PSD=True)
 
-    constraints = [ Acl*X + X*Acl.T + Bdisturbance*Bdisturbance.T == -Y,
+    constraints = [ Acl@X + X@Acl.T + Bdisturbance@Bdisturbance.T == -Y,
                   ]
 
     obj = cvxpy.Minimize(cvxpy.trace(Y))
@@ -28,16 +28,17 @@ def sys_norm_h2_LMI(Acl, Bdisturbance, C):
     prob = cvxpy.Problem(obj, constraints)
     
     prob.solve()
-    eps = 1e-16
-    if np.max(np.linalg.eigvals((-Acl*X - X*Acl.T - Bdisturbance*Bdisturbance.T).value)) > -eps:
-        print('Acl*X + X*Acl.T +Bdisturbance*Bdisturbance.T is not neg def.')
+    eps = 1e-5 # This is a relatively crude epsilon!
+    testVal = np.max(np.linalg.eigvals((Acl@X + X@Acl.T + Bdisturbance@Bdisturbance.T).value))
+    if testVal > eps:
+        print('Acl*X + X*Acl.T + Bdisturbance*Bdisturbance.T is not neg def.', testVal)
         return np.Inf
 
     if np.min(np.linalg.eigvals(X.value)) < eps:
         print('X is not pos def.')
         return np.Inf
 
-    return np.sqrt(np.trace(C*X.value*C.T))
+    return np.sqrt(np.trace(C@X.value@C.T))
 
 
 def sys_norm_hinf_LMI(A, Bdisturbance, C, D = None):
@@ -77,18 +78,18 @@ def sys_norm_hinf_LMI(A, Bdisturbance, C, D = None):
     ndist = Bdisturbance.shape[1]
     nout  = C.shape[0]
 
-    X = cvxpy.Semidef(n)
+    X = cvxpy.Variable((n,n), PSD=True)
     g = cvxpy.Variable()
     
     if D is None:
-        D = np.matrix(np.zeros([nout, ndist]))
+        D = np.array(np.zeros([nout, ndist]))
         
-    r1 = cvxpy.hstack(cvxpy.hstack(A.T*X+X*A, X*Bdisturbance), C.T)
-    r2 = cvxpy.hstack(cvxpy.hstack(Bdisturbance.T*X, -g*np.matrix(np.identity(ndist))), D.T)
-    r3 = cvxpy.hstack(cvxpy.hstack(C, D), -g*np.matrix(np.identity(nout)))
-    tmp = cvxpy.vstack(cvxpy.vstack(r1,r2),r3)
+    r1 = cvxpy.hstack([A.T@X+X@A, X@Bdisturbance, C.T])
+    r2 = cvxpy.hstack([Bdisturbance.T@X, -g*np.identity(ndist), D.T])
+    r3 = cvxpy.hstack([C, D, -g*np.identity(nout)])
+    tmp = cvxpy.vstack([r1,r2,r3])
                         
-    constraints = [tmp == -cvxpy.Semidef(n + ndist + nout)]
+    constraints = [tmp == -cvxpy.Variable((n + ndist + nout, n + ndist + nout), PSD=True)]
 
     obj = cvxpy.Minimize(g)
 
@@ -110,14 +111,13 @@ def sys_norm_hinf_LMI(A, Bdisturbance, C, D = None):
 class TestAnalysis(unittest.TestCase):
 
     def test_scalar_hurwitz(self):
-        self.assertTrue(controlpy.analysis.is_hurwitz(np.matrix([[-1]])))
-        self.assertTrue(controlpy.analysis.is_hurwitz(np.array([[-1]])))
-        self.assertFalse(controlpy.analysis.is_hurwitz(np.matrix([[1]])))
-        self.assertFalse(controlpy.analysis.is_hurwitz(np.array([[1]])))
+        for matType in [np.matrix, np.array]: 
+            self.assertTrue(controlpy.analysis.is_hurwitz(matType([[-1]])))
+            self.assertFalse(controlpy.analysis.is_hurwitz(matType([[1]])))
           
  
     def test_multidim_hurwitz(self):
-        for matType in [np.matrix, np.array]:
+        for matType in [np.matrix, np.array]: 
             Astable = matType([[-1,2,1000], [0,-2,3], [0,0,-9]])
             Aunstable = matType([[1,2,1000], [0,-2,3], [0,0,-9]])
             Acritical = matType([[0,2,10], [0,-2,3], [0,0,-9]])
@@ -231,6 +231,7 @@ class TestAnalysis(unittest.TestCase):
 
     def test_system_norm_Hinf(self):
         for matType in [np.matrix, np.array]:
+        # for matType in [np.array]:
             A = matType([[-1,2],[0,-3]])
             B = matType([[0,1]]).T
             C = matType([[1,0]])

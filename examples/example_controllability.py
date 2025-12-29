@@ -8,8 +8,8 @@ import controlpy
 import numpy as np
 
 # A single input system, one uncontrollable mode.
-A = np.matrix([[0,1,0],[0,0,1],[0,0,5]])
-B = np.matrix([[0],[1],[0]])
+A = np.array([[0,1,0],[0,0,1],[0,0,5]])
+B = np.array([[0],[1],[0]])
 
 uncontrollableModes = controlpy.analysis.uncontrollable_modes(A,B)
 

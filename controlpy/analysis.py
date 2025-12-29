@@ -1,6 +1,6 @@
 """ Tools for analysing LTI systems.
 
-(c) 2014 Mark W. Mueller
+(c) 2023 Mark W. Mueller
 """
 
 import numpy as np
@@ -9,7 +9,8 @@ import scipy.integrate
 
 
 def is_hurwitz(A, tolerance = 1e-9):
-    '''Test whether the matrix A is Hurwitz (i.e. asymptotically stable).
+    '''Test whether the matrix A is Hurwitz (i.e. asymptotically stable, 
+       continuous time).
     
     tolerance defines the minimum distance we should be from the imaginary axis 
      to be considered stable.
@@ -41,13 +42,13 @@ def uncontrollable_modes(A, B, returnEigenValues = False, tolerance=1e-9):
     nStates = A.shape[0]
     nInputs = B.shape[1]
 
-    eVal, eVec = np.linalg.eig(np.matrix(A)) # todo, matrix cast is ugly.
+    eVal, eVec = np.linalg.eig(A) 
 
     uncontrollableModes = []
     uncontrollableEigenValues = []
 
     for e,v in zip(eVal, eVec.T):
-        M = np.matrix(np.zeros([nStates,(nStates+nInputs)]), dtype=complex)
+        M = np.array(np.zeros([nStates,(nStates+nInputs)]), dtype=complex)
         M[:,:nStates] = e*np.identity(nStates) - A
         M[:,nStates:] = B
         
@@ -126,7 +127,7 @@ def controllability_gramian(A, B, T = np.inf):
         #Infinite time Gramian:
         assert is_hurwitz(A), "Can only compute infinite horizon Gramian for a stable system."
         
-        Wc = scipy.linalg.solve_lyapunov(A, -B.dot(B.T))
+        Wc = scipy.linalg.solve_lyapunov(A, -B@B.T)
         return Wc
     
     # We need to solve the finite time Gramian
@@ -136,8 +137,8 @@ def controllability_gramian(A, B, T = np.inf):
     T = np.float(T)
     
     def gramian_ode(y, t0, A, B):
-        temp = np.dot(scipy.linalg.expm(A*t0),B)
-        dQ = np.dot(temp,np.conj(temp.T))
+        temp = scipy.linalg.expm(A*t0)@B
+        dQ = temp@np.conj(temp.T)
          
         return dQ.reshape((A.shape[0]**2,1))[:,0]
      
@@ -260,7 +261,7 @@ def system_norm_H2(Acl, Bdisturbance, C):
     P = controllability_gramian(Acl, Bdisturbance)
     
     #output the gain
-    return np.sqrt(np.trace(C.dot(P).dot(C.T)))
+    return np.sqrt(np.trace(C@P@C.T))
     
 
 def system_norm_Hinf(Acl, Bdisturbance, C, D = None, lowerBound = 0.0, upperBound = np.inf, relTolerance = 1e-3):
@@ -311,23 +312,23 @@ def system_norm_Hinf(Acl, Bdisturbance, C, D = None, lowerBound = 0.0, upperBoun
     
     if D is None:
         #construct a fake feed-through matrix
-        D = np.matrix(np.zeros([C.shape[0], Bdisturbance.shape[1]]))
+        D = np.zeros([C.shape[0], Bdisturbance.shape[1]])
     
 
     def test_upper_bound(gamma, A, B, C, D):
         '''Is the given gamma an upper bound for the Hinf gain?
         '''
         #Construct the R matrix:
-        Rric = -gamma**2*np.matrix(np.eye(D.shape[1],D.shape[1])) + D.T.dot(D)
+        Rric = -gamma**2*np.identity(D.shape[1]) + D.T@D
         #test that Rric is negative definite
         eigsR = np.linalg.eig(Rric)[0]
         if max(np.real(eigsR)) > -eps:
             return False, None
         
         #matrices for the Ricatti equation:
-        Aric = A - B.dot(np.linalg.inv(Rric)).dot(D.T).dot(C)
+        Aric = A - B@np.linalg.inv(Rric)@D.T@C
         Bric = B
-        Qric = C.T.dot(C) - C.T.dot(D).dot(np.linalg.inv(Rric)).dot(D.T).dot(C)
+        Qric = C.T@C - C.T@D@np.linalg.inv(Rric)@D.T@C
 
         try:
             X = scipy.linalg.solve_continuous_are(Aric, Bric, Qric, Rric)
@@ -344,7 +345,7 @@ def system_norm_Hinf(Acl, Bdisturbance, C, D = None, lowerBound = 0.0, upperBoun
             return False, None  
             
   
-        CL = A + B.dot(np.linalg.inv(-Rric)).dot(B.T.dot(X) + D.T.dot(C))
+        CL = A + B@np.linalg.inv(-Rric)@(B.T@X + D.T@C)
         eigs = np.linalg.eigvals(CL)
           
         return (np.max(np.real(eigs)) < -eps), X
@@ -401,7 +402,7 @@ def discretise_time(A, B, dt):
     nstates = A.shape[0]
     ninputs = B.shape[1]
 
-    M = np.matrix(np.zeros([nstates+ninputs,nstates+ninputs]))
+    M = np.zeros([nstates+ninputs,nstates+ninputs])
     M[:nstates,:nstates] = A
     M[:nstates, nstates:] = B
     

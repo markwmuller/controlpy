@@ -1,9 +1,7 @@
 """ Tools for synthesising controllers for LTI systems.
 
-(c) 2014 Mark W. Mueller
+(c) 2023 Mark W. Mueller
 """
-from __future__ import division, print_function
-
 import numpy as np
 import scipy.linalg
 
@@ -32,9 +30,9 @@ def controller_lqr(A, B, Q, R):
     X = scipy.linalg.solve_continuous_are(A, B, Q, R)
     
     #compute the LQR gain
-    K = np.dot(np.linalg.inv(R),(np.dot(B.T,X)))
+    K = np.linalg.inv(R)@B.T@X
     
-    eigVals = np.linalg.eigvals(A-np.dot(B,K))
+    eigVals = np.linalg.eigvals(A-B@K)
     
     return K, X, eigVals
 
@@ -61,9 +59,9 @@ def controller_lqr_discrete_time(A, B, Q, R):
     X = scipy.linalg.solve_discrete_are(A, B, Q, R)
     
     #compute the LQR gain
-    K = np.dot(np.linalg.inv(np.dot(np.dot(B.T,X),B)+R),(np.dot(np.dot(B.T,X),A)))  
+    K = np.linalg.inv(B.T@X@B +R)@B.T@X@A
     
-    eigVals = np.linalg.eigvals(A-np.dot(B,K))
+    eigVals = np.linalg.eigvals(A-B@K)
     
     return K, X, eigVals
 
@@ -91,9 +89,9 @@ def estimator_kalman_steady_state_discrete_time(A, H, Q, R):
     X = scipy.linalg.solve_discrete_are(A.T, H.T, Q, R)
     
     #compute the LQR gain
-    K = X.dot(H.T).dot(np.linalg.inv(H.dot(X).dot(H.T)+R))
+    K = X@H.T@np.linalg.inv(H@X@H.T+R)
     
-    eigVals = np.linalg.eigvals( (np.identity(X.shape[0]) - K.dot(H)).dot(A) )
+    eigVals = np.linalg.eigvals( (np.identity(X.shape[0]) - K@H)@A )
     
     return K, X, eigVals
 
@@ -167,11 +165,11 @@ def controller_H2_state_feedback(A, Binput, Bdist, C1, D12):
     
     """
 
-    X = scipy.linalg.solve_continuous_are(A, Binput, C1.T.dot(C1), D12.T.dot(D12))
+    X = scipy.linalg.solve_continuous_are(A, Binput, C1.T@C1, D12.T@D12)
+    
+    K = np.linalg.inv(D12.T@D12)@Binput.T@X
 
-    K = np.linalg.inv(D12.T.dot(D12)).dot(Binput.T).dot(X)
-
-    J = np.sqrt(np.trace(Bdist.T.dot(X.dot(Bdist))))
+    J = np.sqrt(np.trace(Bdist.T@X@Bdist))
     
     return K, X, J
 
@@ -256,8 +254,8 @@ def controller_Hinf_state_feedback(A, Binput, Bdist, C1, D12, stabilityBoundaryE
     """
         
     assert analysis.is_stabilisable(A, Binput), '(A, Binput) must be stabilisable'
-    assert np.linalg.det(D12.T.dot(D12)), 'D12.T*D12 must be invertible'
-    assert np.max(np.abs(D12.T.dot(C1)))==0, 'D12.T*C1 must be zero'
+    assert np.linalg.det(D12.T@D12), 'D12.T*D12 must be invertible'
+    assert np.max(np.abs(D12.T@C1))==0, 'D12.T*C1 must be zero'
     tmp = analysis.unobservable_modes(C1, A, returnEigenValues=True)[1]
     if tmp:
         assert np.max(np.abs(np.real(tmp)))>0, 'The pair (C1,A) must have no unobservable modes on imag. axis'
@@ -277,8 +275,8 @@ def controller_Hinf_state_feedback(A, Binput, Bdist, C1, D12, stabilityBoundaryE
         
     R = np.matrix(np.zeros([B.shape[1], B.shape[1]]))
     #we fill the upper left of R later.
-    R[Bdist.shape[1]:,Bdist.shape[1]:] = D12.T.dot(D12)
-    Q = C1.T.dot(C1)
+    R[Bdist.shape[1]:,Bdist.shape[1]:] = D12.T@D12
+    Q = C1.T@C1
        
     #Define a helper function:
     def has_stable_solution(g, A, B, Q, R, eps):
@@ -303,7 +301,7 @@ def controller_Hinf_state_feedback(A, Binput, Bdist, C1, D12, stabilityBoundaryE
             return False, None  
  
    
-        CL = A - Binput.dot(np.linalg.inv(D12.T.dot(D12))).dot(Binput.T).dot(X) + g**(-2)*Bdist.dot(Bdist.T).dot(X)
+        CL = A - Binput@np.linalg.inv(D12.T@D12)@Binput.T@X + g**(-2)*Bdist@Bdist.T@X
         eigs = np.linalg.eigvals(CL)
            
         return (np.max(np.real(eigs)) < -eps), X
@@ -348,7 +346,7 @@ def controller_Hinf_state_feedback(A, Binput, Bdist, C1, D12, stabilityBoundaryE
         stab, X = has_stable_solution(g, A, B, Q, R, stabilityBoundaryEps)
         assert stab, 'Sub-optimal solution not found!'
 
-    K = np.linalg.inv(D12.T.dot(D12)).dot(Binput.T).dot(X)
+    K = np.linalg.inv(D12.T@D12)@Binput.T@X
     
     J = g
     return K, X, J
